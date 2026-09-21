@@ -202,3 +202,15 @@ html.light .tfp{
 .tfp .kpi .v{overflow-wrap:anywhere}
 @media (max-width:640px){.tfp .kpi{grid-template-columns:1fr !important}.tfp .block{padding:10px 12px}}
 @media (max-width:640px){.tfp .tabs{padding-left:16px;padding-top:58px}}
+
+/* ajustes visuales: sin barras de scroll en pestañas y riel (se envuelven en filas),
+   y el texto ocupa el ancho de la columna en vez de quedar como una columna angosta */
+.tfp .tabs{flex-wrap:wrap;overflow:visible;gap:6px 8px;row-gap:6px}
+.tfp .rail{flex-wrap:wrap;overflow:visible;gap:6px 8px}
+.tfp .wrap{max-width:920px}
+.tfp p,.tfp .note,.tfp .lead{max-width:none}
+.tfp .kpi{max-width:none}
+.tfp .corpus{max-width:none}
+.tfp .tabs{position:static;backdrop-filter:none;background:transparent;padding-left:24px}
+@media (max-width:1520px){.tfp .tabs{padding-left:24px}}
+@media (max-width:640px){.tfp .tabs{padding-left:16px;padding-top:10px}}
