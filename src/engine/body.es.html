@@ -1,0 +1,555 @@
+<div class="wrap">
+<nav class="tabs" id="tabs" aria-label="Temas">
+  <button type="button" data-m="ent"><span>01 · 1948</span>Entropía</button>
+  <button type="button" data-m="id3"><span>02 · 1986</span>Árbol ID3</button>
+  <button type="button" data-m="cart"><span>03 · 1984</span>CART y Gini</button>
+  <button type="button" data-m="poda"><span>04</span>Sobreajuste y poda</button>
+  <button type="button" data-m="bag"><span>05 · 1996 a 2001</span>Bagging y random forest</button>
+  <button type="button" data-m="ada"><span>06 · 1996</span>AdaBoost</button>
+  <button type="button" data-m="gb"><span>07 · 2001</span>Gradient boosting</button>
+  <button type="button" data-m="imp"><span>08</span>Importancia de variables</button>
+  <button type="button" data-m="c5"><span>Bonus track</span>C5.0</button>
+</nav>
+
+<!-- ===================== 01 ENTROPIA ===================== -->
+<div class="modelo" id="m-ent">
+<div class="controls">
+  <div class="ctrl" data-pasos="0"><label for="ent-p">Probabilidad p del evento: <b id="ent-p-v">0,50</b></label><input type="range" id="ent-p" min="1" max="99" value="50" style="width:200px"></div>
+  <div class="ctrl" data-pasos="2"><label for="ent-attr">Atributo</label><select id="ent-attr"><option value="tamano">tamaño</option><option value="deuda" selected>deuda</option><option value="garantia">garantía</option><option value="historial">historial</option></select></div>
+  <div class="ctrl" data-pasos="4"><label>Forma de la relación</label><div class="seg" id="ent-forma"><button type="button" data-f="lineal" aria-pressed="false">Recta</button><button type="button" data-f="u" aria-pressed="true">U</button><button type="button" data-f="azar" aria-pressed="false">Azar</button></div></div>
+  <div class="ctrl" data-pasos="4"><label for="ent-n">Empresas simuladas: <b id="ent-n-v">60</b></label><input type="range" id="ent-n" min="20" max="400" step="20" value="60" style="width:160px"></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="ent-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="ent-rail"></nav>
+
+<section class="panel" id="ent-s0">
+  <h2>La información de un evento: cuánto nos sorprende</h2>
+  <p>Antes de hablar de árboles hay que responder una pregunta que parece filosófica y resulta muy práctica: <b>¿cómo se mide cuánto sabemos?</b> Piensa en dos noticias. "El sol salió esta mañana" no informa nada: ya lo sabías. "Una empresa con clasificación AAA cayó en impago" informa muchísimo: era casi imposible. La diferencia entre las dos está en la probabilidad que le dabas al evento antes de enterarte. Mientras menos probable era, más te dice que haya ocurrido.</p>
+  <p>Claude Shannon (1948) puso número a esa intuición. Definió la información de un evento como el logaritmo de uno partido por su probabilidad, que es lo mismo que menos el logaritmo de la probabilidad:</p>
+  <div class="eq"><span class="name">Ecuación de la información de un evento</span>\[ I(\text{evento}) = \log_2 \frac{1}{p} = -\log_2(p) \]</div>
+  <p>Aquí \(p\) es la probabilidad del evento antes de saber si ocurrió, y el resultado se mide en <b>bits</b>. Con el logaritmo en base 2, una moneda justa (\(p = 0{,}5\)) informa exactamente 1 bit; un dado (\(p = 1/6\)), 2,58 bits; un evento seguro (\(p = 1\)), 0 bits. Puedes pensar en un bit como "una pregunta de sí o no": para averiguar cómo cayó una moneda necesitas una pregunta; para averiguar qué número salió en un dado, entre dos y tres.</p>
+  <p><b>Por qué justo el logaritmo y no otra cosa.</b> Porque queremos que la información de dos eventos independientes se sume. Si tiro dos monedas, saber el resultado de ambas debería informar el doble que saber una. La probabilidad de las dos juntas es \(p \cdot q\), y el logaritmo convierte ese producto en una suma: \(-\log_2(p \cdot q) = -\log_2(p) - \log_2(q)\). Cualquier otra función de \(p\) rompería esa propiedad. No es una elección de gusto; es la única que funciona.</p>
+  <div class="flow" id="ent-info"></div>
+  <p>Mueve el deslizador de la probabilidad arriba y mira la curva. Fíjate en que no es una recta: bajar de 0,5 a 0,25 cuesta un bit más, y bajar de 0,02 a 0,01 también cuesta un bit más, aunque la diferencia en probabilidad sea mucho menor. Lo que importa es en cuánto se multiplica la rareza, no en cuánto se resta.</p>
+  <p class="note">Todo aquí está en bits (logaritmo en base 2). Si se usa logaritmo natural la unidad se llama nat. Es la misma cantidad en otra unidad, como kilómetros y millas; el factor de conversión es 0,693.</p>
+</section>
+
+<section class="panel" id="ent-s1">
+  <h2>La entropía: la sorpresa promedio de una variable</h2>
+  <p>Lo anterior mide la información de <em>un</em> evento. Pero una variable, como "¿la empresa paga o no?", tiene varios valores posibles, cada uno con su probabilidad. ¿Cuánta información nos entrega, en promedio, conocer su valor? Se calcula tomando la información de cada valor y promediándola con las probabilidades de cada uno. A ese promedio Shannon lo llamó <b>entropía</b>:</p>
+  <div class="eq"><span class="name">Ecuación de la entropía</span>\[ H(X) = -\sum_{v} p(v)\,\log_2 p(v) \]</div>
+  <p>La suma recorre los valores posibles \(v\) de la variable \(X\), y \(p(v)\) es la fracción de veces que sale cada uno. Dicho en palabras: cuántas preguntas de sí o no hacen falta, en promedio, para adivinar el valor. Tres casos para fijar la idea. Una moneda justa: los dos valores tienen probabilidad 0,5, cada uno informa 1 bit, el promedio es 1 bit. Una moneda cargada que sale cara el 90% de las veces: casi siempre sabemos qué va a pasar, y la entropía baja a 0,47 bits. Una constante (siempre sale lo mismo): no hay nada que adivinar, entropía cero.</p>
+  <p>Veámoslo con datos. Las 14 empresas que pidieron crédito tienen cuatro atributos (tamaño, nivel de deuda, si dieron garantía, historial de pago) y un resultado: si pagaron o no. Para cada columna contamos cuántas veces sale cada valor, lo pasamos a probabilidad y aplicamos la fórmula.</p>
+  <div class="flow" id="ent-h"></div>
+  <p id="ent-h-nota"></p>
+  <p><b>Para qué sirve esto.</b> La entropía de "paga" es la incertidumbre que tenemos <em>antes</em> de preguntar nada sobre la empresa. Es el punto de partida: cada dato que pidamos debería bajar ese número. En el paso siguiente medimos cuánto lo baja cada atributo, y eso es exactamente lo que un árbol de decisión usa para elegir qué preguntar primero.</p>
+</section>
+
+<section class="panel" id="ent-s2">
+  <h2>Entropía condicional y ganancia: cuánto aprendo al preguntar</h2>
+  <p>Supón que un analista ya sabe el nivel de deuda de una empresa. ¿Cuánta incertidumbre le queda sobre si va a pagar? Para responder se hace lo siguiente: se separan las empresas en grupos según la deuda (baja, media, alta), se calcula la entropía de "paga" <em>dentro de cada grupo</em>, y se promedian esas entropías dando más peso a los grupos más grandes. El resultado se llama <b>entropía condicional</b>, y se escribe \(H(\text{paga} \mid \text{deuda})\), que se lee "entropía de paga dado deuda".</p>
+  <div class="eq"><span class="name">Ecuación de la entropía condicional</span>\[ H(Y \mid X) = \sum_{v} P(X = v)\; H(Y \text{ dentro del grupo donde } X = v) \]</div>
+  <p>\(Y\) es la variable que queremos predecir (paga), \(X\) el atributo que estamos considerando preguntar (deuda), \(P(X = v)\) la fracción de empresas que tienen el valor \(v\) de ese atributo, y el término que la acompaña es la entropía de paga calculada solo con esas empresas. Si un grupo queda "puro" (todas pagan, o ninguna), su entropía es cero y no aporta incertidumbre.</p>
+  <p>La <b>ganancia de información</b> es lo que desapareció: la entropía que teníamos antes menos la que nos queda después de preguntar. Se le llama también <b>información mutua</b>, porque, aunque no parezca, da lo mismo calcularla al revés (cuánto reduce paga la incertidumbre sobre la deuda):</p>
+  <div class="eq"><span class="name">Ecuación de la ganancia de información</span>\[ I(Y; X) = H(Y) - H(Y \mid X) \]</div>
+  <p>Elige un atributo arriba y mira cómo se parte la tabla. Cada tarjeta es un grupo; abajo, la cuenta completa.</p>
+  <div class="flow" id="ent-cond"></div>
+  <p id="ent-cond-nota"></p>
+  <p><b>Cómo se lee.</b> Un atributo con ganancia alta es una buena pregunta: después de conocerlo, las empresas quedan bastante separadas entre las que pagan y las que no. Un atributo con ganancia cercana a cero es una pregunta inútil: los grupos que forma están tan mezclados como la tabla entera. Ese número, calculado para cada atributo, es la decisión que toma un árbol en cada nodo.</p>
+</section>
+
+<section class="panel" id="ent-s3">
+  <h2>Las cuatro ganancias, y una trampa que conviene conocer</h2>
+  <p>Con la misma cuenta para los cuatro atributos se obtiene un ranking. La deuda gana con bastante ventaja; el tamaño casi no aporta: saber si la empresa es chica, mediana o grande no dice casi nada sobre si paga, al menos en esta tabla. Ese ranking es, literalmente, la primera pregunta del árbol de la pestaña siguiente.</p>
+  <div class="flow" id="ent-gan"></div>
+  <p><b>La trampa del identificador.</b> Hay una situación en que la ganancia engaña. Imagina que agregamos a la tabla una columna "número de cliente", distinto para cada empresa. Al separar por esa columna, cada grupo tiene una sola empresa, así que cada grupo es puro y la entropía condicional es exactamente cero: la ganancia es la máxima posible. Y sin embargo esa "pregunta" no sirve para nada: una empresa nueva trae un número que nunca vimos, y el árbol no sabría qué hacer con ella. El problema es general: un atributo con muchos valores distintos parte la tabla en pedacitos y gana "gratis", sin que eso signifique que tenga poder predictivo.</p>
+  <p>La corrección clásica (C4.5, Quinlan 1993) es dividir la ganancia por la entropía del propio atributo, que es alta cuando el atributo tiene muchos valores. Eso se llama <b>gain ratio</b>:</p>
+  <div class="eq"><span class="name">Ecuación del gain ratio</span>\[ \text{gain ratio}(X) = \frac{I(Y; X)}{H(X)} \]</div>
+  <p>En la tabla de arriba el gain ratio castiga al identificador (de 0,985 a 0,259), pero en una tabla de 14 filas todavía le gana a la deuda (0,185). Por eso C4.5 agrega otra regla (solo considerar atributos cuya ganancia supere el promedio) y por eso, sobre todo, manda el sentido común: un atributo que identifica filas no puede generalizar, y ningún número lo va a arreglar del todo.</p>
+</section>
+
+<section class="panel" id="ent-s4">
+  <h2>El paralelo con la estadística que ya conoces: varianza y correlación</h2>
+  <p>Si vienes de estadística, la entropía te puede sonar a algo que ya conoces: la <b>varianza</b>. Las dos miden dispersión, y las dos valen cero cuando la variable es constante. Pero hay una diferencia importante. La varianza mide cuánto se aleja un <em>número</em> de su promedio, y por eso necesita que la variable sea numérica y tenga una escala: si pasamos de medir en pesos a medir en miles de pesos, la varianza cambia. La entropía solo mira las <em>probabilidades</em> de cada valor: da lo mismo que los valores sean 1, 2, 3 o 10, 20, 30, o "chica, mediana, grande". Por eso la entropía sirve para variables sin números, donde la varianza no tiene sentido. Y por eso un árbol de clasificación usa entropía (o Gini) exactamente donde un árbol de regresión usa varianza: como medida de "qué tan mezclado está el grupo" que un buen corte reduce.</p>
+  <p>El mismo paralelo existe entre la <b>correlación</b> y la <b>información mutua</b>. La correlación de Pearson mide cuánto se parece la relación entre dos variables a una línea recta, y va de \(-1\) a \(1\). La información mutua mide cuánto reduce una variable la incertidumbre de la otra, sea cual sea la forma de la relación, y va de 0 hacia arriba, en bits. Con las variables agrupadas en clases se calcula así:</p>
+  <div class="eq"><span class="name">Ecuación de la información mutua con clases</span>\[ I(X; Y) = \sum_{x,\,y} p(x, y)\,\log_2 \frac{p(x, y)}{p(x)\,p(y)} \]</div>
+  <p>\(p(x, y)\) es la fracción de observaciones que caen en la celda (clase de \(X\), clase de \(Y\)), y \(p(x)\), \(p(y)\) son las fracciones de cada clase por separado. Si \(X\) e \(Y\) fueran independientes, la fracción conjunta sería igual al producto de las fracciones separadas en todas las celdas, el logaritmo daría cero y la suma también.</p>
+  <p><b>Por qué importa.</b> Una correlación cercana a cero puede significar dos cosas muy distintas: que no hay relación, o que la relación existe pero no es una recta. Elige la forma arriba (recta, U o azar) y compara las dos medidas. Con la U, la correlación queda cerca de cero porque la mitad que sube cancela a la mitad que baja, pero la información mutua es claramente mayor que la del azar: saber \(x\) sí dice mucho de \(y\). Un árbol, que trabaja con ganancia de información o Gini, encuentra la U con dos cortes; una regresión lineal la ignora por completo.</p>
+  <div class="flow" id="ent-var"></div>
+  <p id="ent-var-nota"></p>
+  <div class="flow" id="ent-dist"></div>
+</section>
+
+<section class="panel" id="ent-s5">
+  <h2>Entropía cruzada: la pérdida que entrena a los clasificadores</h2>
+  <p>Hasta aquí medimos la incertidumbre de la realidad. Ahora entra un <em>modelo</em> que cree algo sobre esa realidad. Supón que la realidad se distribuye como \(p\) (por ejemplo, 8 de 14 empresas pagan, \(p(\text{sí}) = 0{,}571\)) y un modelo cree que la probabilidad de pagar es \(q\). Cada vez que ocurre algo, el modelo se sorprende según lo que <em>él</em> creía: paga \(-\log_2 q\) bits si la empresa pagó y \(-\log_2(1 - q)\) si no. La sorpresa promedio que sufre el modelo es la <b>entropía cruzada</b>: la misma fórmula de la entropía, pero el logaritmo se toma sobre la creencia \(q\) y el promedio sobre la realidad \(p\).</p>
+  <div class="eq"><span class="name">Ecuaciones de la entropía cruzada y la divergencia de Kullback-Leibler (KL)</span>\[ H(p, q) = -\sum_{v} p(v)\,\log_2 q(v) \qquad\qquad \mathrm{KL}(p \,\|\, q) = H(p, q) - H(p) \]</div>
+  <p>La entropía cruzada nunca es menor que la entropía de la realidad, \(H(p)\): un modelo no puede sorprenderse menos que lo que la realidad es incierta. La diferencia entre las dos es la <b>divergencia de Kullback-Leibler</b> (Kullback y Leibler, 1951), que mide la sorpresa <em>extra</em> que paga el modelo por creer \(q\) en vez de \(p\). Vale cero solo cuando el modelo acierta la distribución, y crece muy rápido cuando el modelo está seguro y se equivoca: si dice 0,95 y ocurre lo contrario, paga \(-\log_2(0{,}05) = 4{,}3\) bits de golpe.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label for="ent-q">Creencia del modelo q(paga = sí): <b id="ent-q-v">0,60</b></label><input type="range" id="ent-q" min="1" max="99" value="60" style="width:220px"></div></div>
+  <div class="flow" id="ent-cruz"></div>
+  <p id="ent-cruz-nota"></p>
+  <p><b>Para qué sirve.</b> Esta es la pérdida que minimizan la regresión logística y todas las redes neuronales de clasificación. Entrenar un clasificador es, literalmente, mover sus parámetros para que la entropía cruzada baje, es decir, para que \(q\) se acerque a \(p\). Y como \(H(p)\) no depende del modelo, lo único que el entrenamiento puede reducir es la divergencia KL.</p>
+  <p><b>Para quien viene de econometría.</b> Minimizar la entropía cruzada es exactamente maximizar la verosimilitud. La log-verosimilitud de una regresión logística es \(\sum_i [\,y_i \ln q_i + (1 - y_i)\ln(1 - q_i)\,]\); cambiarle el signo y dividir por \(n\) da la entropía cruzada binaria promedio (en nats; en bits solo cambia la unidad). Son la misma función objetivo con dos nombres: la estadística la lee como "qué tan probable era la muestra bajo el modelo" y la teoría de la información como "cuánta sorpresa acumula el modelo". Lo que agrega el segundo punto de vista es el piso \(H(p)\): la parte de la pérdida que ningún modelo puede bajar porque es incertidumbre real.</p>
+</section>
+<div class="nav"><button type="button" id="ent-prev">Anterior</button><button type="button" id="ent-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 02 ID3 ===================== -->
+<div class="modelo" id="m-id3">
+<div class="controls">
+  <div class="ctrl" data-pasos="3"><label>Empresa nueva</label><div style="display:flex;gap:6px;flex-wrap:wrap">
+    <select id="id3-tam"><option>pequena</option><option>mediana</option><option selected>grande</option></select>
+    <select id="id3-deu"><option>baja</option><option selected>media</option><option>alta</option></select>
+    <select id="id3-gar"><option>si</option><option selected>no</option></select>
+    <select id="id3-his"><option>bueno</option><option selected>malo</option></select></div></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="id3-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="id3-rail"></nav>
+<section class="panel" id="id3-s0">
+  <h2>Qué es un árbol de decisión, y qué decide el algoritmo</h2>
+  <p>Un árbol de decisión es una lista de preguntas encadenadas que termina en una respuesta. Un analista de crédito con experiencia hace algo parecido sin darse cuenta: "¿tiene mucha deuda? Si no, aprobado. Si sí, ¿dio garantía? Si sí, aprobado; si no, rechazado". Cada pregunta parte a los clientes en grupos, y cada grupo final recibe una decisión. Lo que hace el algoritmo no es inventar ese esquema, sino <b>elegir las preguntas</b>: cuál hacer primero, cuál después en cada rama, y cuándo parar.</p>
+  <p>ID3 (Quinlan, 1986) fue el primer algoritmo que lo hizo de forma sistemática, y su regla es la de la pestaña anterior: en cada nodo, preguntar por el atributo de <b>mayor ganancia de información</b>. La receta completa cabe en tres líneas. Primero, si todas las empresas del grupo tienen la misma respuesta, no hay nada que preguntar: el grupo es una hoja. Segundo, si no, se calcula la ganancia de cada atributo que todavía no se ha usado y se pregunta por el mejor. Tercero, se parte el grupo según la respuesta y se repite en cada rama.</p>
+  <p>Una palabra para describir esa receta es <b>goloso</b> (greedy, en inglés): en cada paso elige la mejor pregunta <em>ahora</em>, sin mirar si otra combinación de preguntas daría un árbol más chico o más preciso al final. Es una simplificación enorme, y funciona sorprendentemente bien en la práctica.</p>
+  <div class="block stage"><div class="t">Las 14 empresas</div><div id="id3-tabla" class="mwrap"></div></div>
+  <p><b>Para qué sirve.</b> Es el modelo más explicable que existe. Cada predicción se puede leer como una frase ("se rechazó porque tiene deuda alta y no dio garantía"), y un gerente puede discutir cada pregunta, cambiarla o prohibirla. En crédito, donde hay obligación de explicar un rechazo, esa transparencia vale tanto como el acierto.</p>
+</section>
+<section class="panel" id="id3-s1">
+  <h2>Paso 1: la raíz</h2>
+  <p>Con las 14 empresas se calcula la ganancia de cada atributo. Es exactamente la tabla de la pestaña anterior: la deuda gana con 0,292 bits, la garantía la sigue con 0,161, el historial aporta poco y el tamaño casi nada. Así que la primera pregunta del árbol, la <b>raíz</b>, es "¿cuál es el nivel de deuda?".</p>
+  <div class="flow" id="id3-raiz"></div>
+  <p>Vale la pena detenerse en lo que <em>no</em> hizo el algoritmo: no probó todos los árboles posibles. Solo miró cuatro números y eligió el mayor. Todo lo que viene es repetir esa misma decisión, cada vez con menos empresas y menos atributos.</p>
+</section>
+<section class="panel" id="id3-s2">
+  <h2>Paso 2: partir, y repetir en cada rama</h2>
+  <p>La deuda tiene tres valores, así que la tabla se parte en tres grupos. En cada grupo se vuelve a hacer la misma pregunta: ¿queda incertidumbre? Si todas las empresas del grupo pagan (o ninguna), es una hoja y se termina. Si no, se calcula la ganancia de los atributos que quedan, ahora solo con las empresas de ese grupo, y se pregunta por el mejor.</p>
+  <div class="flow" id="id3-ramas"></div>
+  <p>Fíjate en que en cada rama gana un atributo distinto. Entre las empresas de deuda alta lo que separa a las que pagan es la garantía; entre las de deuda media, el historial. El árbol pregunta cosas distintas según el camino, y eso es lo que le permite capturar relaciones que una regresión lineal no ve: el efecto de la garantía depende de cuánta deuda hay. En estadística eso se llama interacción, y aquí aparece sin que nadie la pida.</p>
+</section>
+<section class="panel" id="id3-s3">
+  <h2>Paso 3: el árbol completo, y una empresa nueva</h2>
+  <p>Tres preguntas, cinco hojas. Para predecir una empresa nueva se parte de la raíz, se responde cada pregunta con los datos de la empresa y se sigue la rama correspondiente hasta llegar a una hoja. Cambia la empresa nueva arriba y sigue su camino iluminado. Nota que el tamaño nunca se pregunta: el árbol lo descartó solo, porque en ninguna rama fue el atributo de mayor ganancia.</p>
+  <div class="flow"><div class="block stage" style="flex:1 1 420px"><div class="t">El árbol</div><div id="id3-arbol"></div></div><div class="block stage" style="flex:1 1 260px"><div class="t">La empresa nueva</div><div id="id3-nueva"></div></div></div>
+  <p><b>Una advertencia que se desarrolla en la pestaña 04.</b> Este árbol acierta las 14 empresas con las que se construyó. Eso no dice nada sobre empresas nuevas: con 14 filas y 4 atributos, casi cualquier tabla se puede "explicar" completa, incluso una llena de ruido. La única nota que vale es la que se obtiene con datos que el árbol no vio.</p>
+  <p><b>Qué siguió en la historia.</b> ID3 solo maneja atributos con valores de categoría (no sabe qué hacer con "ventas sobre deuda = 1,43") y no tiene freno: sigue partiendo grupos chiquitos mientras quede algún atributo. C4.5 (1993) agregó el gain ratio, el manejo de variables numéricas y la poda. CART (1984, la pestaña siguiente) tomó otro camino: índice de Gini, cortes siempre en dos, y la capacidad de predecir números además de categorías. Todos los árboles que se usan hoy son variantes de CART.</p>
+</section>
+<div class="nav"><button type="button" id="id3-prev">Anterior</button><button type="button" id="id3-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 03 CART ===================== -->
+<div class="modelo" id="m-cart">
+<div class="controls">
+  <div class="ctrl" data-pasos="2"><label for="cart-ratio">Ratio</label><select id="cart-ratio"></select></div>
+  <div class="ctrl" data-pasos="2"><label for="cart-u">Umbral: <b id="cart-u-v"></b></label><input type="range" id="cart-u" min="0" max="1000" value="500" style="width:220px"></div>
+  <div class="ctrl" data-pasos="2"><label>&nbsp;</label><button type="button" id="cart-best">Ir al mejor corte</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="cart-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="cart-rail"></nav>
+<section class="panel" id="cart-s0">
+  <h2>Los datos cambian: 219 empresas descritas con números</h2>
+  <p>Hasta aquí trabajamos con 14 empresas descritas con palabras (deuda baja, media o alta; garantía sí o no). Desde esta pestaña y hasta el final trabajamos con otra tabla: 219 empresas chilenas descritas por cinco ratios financieros, cada uno un número con decimales, y una columna que dice si la empresa cayó en impago (1) o pagó (0). El 39% cayó en impago. Vale la pena mirar la tabla antes de seguir, porque el cambio de tipo de datos es lo que motiva todo lo que hace CART distinto de ID3.</p>
+  <p>Los cinco ratios son los de cualquier análisis de crédito. <b>Deuda sobre activos</b>: qué fracción de lo que la empresa tiene está financiada con deuda (endeudamiento). <b>Razón corriente</b>: activo circulante sobre pasivo circulante, cuántas veces puede cubrir lo que debe pagar en el año con lo que puede cobrar o vender en el año (liquidez). <b>Ventas sobre deuda</b>: cuántas veces sus ventas cubren su deuda total (capacidad de servir la deuda). <b>Logaritmo de los activos</b>: el tamaño de la empresa, en logaritmo para que una empresa cien veces más grande no quede cien veces más lejos. <b>Rentabilidad sobre activos (roa)</b>: utilidad neta sobre activos totales.</p>
+  <p>La columna <b>conjunto</b> también es nueva. Separamos al azar 146 empresas para <b>entrenar</b> (con ellas se eligen los cortes) y 73 para <b>probar</b> (con ellas se mide si lo aprendido sirve con empresas nuevas). Desde este momento la regla es la de siempre: todo lo que el modelo "aprende" se aprende solo con las 146; las 73 se tocan una sola vez, al final, para dar la nota. Esta partición es la misma en todas las pestañas que siguen.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label>Mostrar</label><div class="seg" id="cart-datos-conj"><button type="button" data-c="todas" aria-pressed="true">Las 219</button><button type="button" data-c="entrenamiento" aria-pressed="false">Entrenamiento (146)</button><button type="button" data-c="prueba" aria-pressed="false">Prueba (73)</button></div></div></div>
+  <div class="flow" id="cart-datos"></div>
+  <p><b>Cómo leer la tabla.</b> Cada fila es una empresa; las columnas de ratios son los números con los que el árbol va a preguntar, y la última columna es lo que queremos predecir. Fíjate en que no hay valores repetidos que formen grupos naturales, como pasaba con "deuda alta": cada empresa tiene su propio ventas sobre deuda. Por eso la pregunta del árbol ya no puede ser "¿cuál es su valor?" sino "¿es menor o igual a un umbral?", y elegir ese umbral es el trabajo del paso 2.</p>
+</section>
+<section class="panel" id="cart-s1">
+  <h2>CART: el árbol que usa todo el software actual</h2>
+  <p>CART (Breiman, Friedman, Olshen y Stone, 1984) es el árbol que está detrás de scikit-learn, de los random forests y de XGBoost. Difiere de ID3 en tres cosas. Primero, mide la impureza de un grupo con el <b>índice de Gini</b> en vez de la entropía. Segundo, siempre parte en <b>dos</b>: para una variable numérica busca el mejor <b>umbral</b> ("¿ventas sobre deuda es menor o igual a 1,28?") probando todos los cortes posibles. Tercero, también sirve para predecir <b>números</b>, no solo categorías.</p>
+  <p><b>Antes de seguir, un cambio que conviene decir en voz alta.</b> Hasta aquí las preguntas del árbol eran sobre categorías ("¿la deuda es baja, media o alta?") y la respuesta era una categoría (paga sí o no). En la primera pestaña apareció el paralelo para cuando la respuesta es un número: la incertidumbre de un grupo se mide con su varianza en vez de la entropía. Lo que faltaba decir es el resto de la receta, que es la misma: la predicción de un grupo es su promedio, y la ganancia de una pregunta es cuánto baja la varianza al partir (la varianza total menos el promedio ponderado de las varianzas de los grupos), igual que la ganancia de información era cuánto bajaba la entropía. Lo que cambia ahora es el otro lado: las variables con las que preguntamos pasan a ser <b>números</b> (ratios financieros con decimales), y con un número no se puede preguntar "¿cuál es su valor?", porque cada empresa tiene uno distinto. La pregunta natural es de la forma "¿es menor o igual a un umbral?", y el trabajo nuevo del algoritmo es <b>elegir ese umbral</b>. Todo lo demás (medir la impureza de cada lado, promediarla con el tamaño de cada lado, quedarse con la pregunta que más la reduce) es idéntico.</p>
+  <div class="block"><div class="t">Los cuatro casos, y qué cambia en cada uno</div>
+  <div class="mwrap"><table class="tabla">
+    <tr><th></th><th>Respuesta Y categórica (paga sí o no)</th><th>Respuesta Y numérica (rentabilidad)</th></tr>
+    <tr><th>Variable X categórica (deuda baja, media, alta)</th><td>Es el caso de ID3: una rama por valor, impureza medida con entropía o Gini, predicción por mayoría del grupo.</td><td>Una rama por valor, impureza medida con la varianza del grupo, predicción igual al promedio del grupo. Es el paralelo entropía y varianza de la primera pestaña.</td></tr>
+    <tr><th>Variable X numérica (ventas sobre deuda = 1,43)</th><td>El caso de esta pestaña: se busca un umbral, se parte en "menor o igual" y "mayor", y se mide Gini a cada lado.</td><td>Árbol de regresión de CART: el mismo umbral, con la varianza a cada lado como impureza y el promedio de cada lado como predicción. Es la pieza que usa el gradient boosting de la pestaña 07.</td></tr>
+  </table></div>
+  <p style="margin-top:8px">Dos detalles prácticos. CART parte siempre en dos, así que cuando le llega una variable categórica no abre una rama por valor como ID3, sino que busca la mejor forma de separar los valores en dos grupos (por ejemplo, "deuda alta" contra "baja o media"); en muchas librerías eso se resuelve convirtiendo cada categoría en una columna de ceros y unos, y una columna de ceros y unos es un número más al que se le puede poner un umbral de 0,5. Y la impureza que se usa depende solo de la respuesta, no de las variables con que se pregunta: Gini o entropía si Y es una categoría, varianza si Y es un número.</p></div>
+  <p>El índice de Gini responde una pregunta concreta: si saco dos empresas al azar de un grupo, ¿qué probabilidad hay de que sean de clases distintas? Si el grupo es puro, ninguna: Gini vale 0. Si el grupo está mitad y mitad, la mitad de las veces: Gini vale 0,5. Con \(p\) la fracción de una clase en el grupo:</p>
+  <div class="eq"><span class="name">Ecuación del índice de Gini</span>\[ \text{Gini} = 1 - p^2 - (1 - p)^2 = 2\,p\,(1 - p) \]</div>
+  <p>La primera forma se lee "uno menos la probabilidad de que las dos sean de la misma clase"; la segunda es la misma cosa simplificada. Si la comparas con la entropía en el gráfico de abajo, verás que tienen casi la misma forma: ambas son cero en los extremos y máximas en el medio. Gini se usa más que la entropía por una razón práctica: no necesita logaritmos, y un árbol calcula esta cantidad millones de veces.</p>
+  <div class="flow" id="cart-gini"></div>
+</section>
+<section class="panel" id="cart-s2">
+  <h2>Buscar el mejor corte de un ratio: mueve el umbral</h2>
+  <p>Con una variable numérica no hay "valores" que separen grupos; hay infinitos umbrales posibles. CART resuelve eso probándolos todos. Los candidatos son los puntos medios entre valores consecutivos del entrenamiento (así el corte queda entre dos empresas y no sobre una). Para cada candidato \(u\) se parte el entrenamiento en "menor o igual a \(u\)" y "mayor que \(u\)", se mide el Gini de cada lado y se promedian los dos pesando por cuántas empresas quedaron en cada lado:</p>
+  <div class="eq"><span class="name">Ecuación del Gini ponderado de un corte</span>\[ G(u) = \frac{n_{\text{izq}}\,\text{Gini}_{\text{izq}} + n_{\text{der}}\,\text{Gini}_{\text{der}}}{n} \]</div>
+  <p>\(n\) es el total de empresas del grupo, \(n_{\text{izq}}\) y \(n_{\text{der}}\) cuántas quedan a cada lado del umbral, y los Gini son los de cada lado. El umbral con menor \(G(u)\) es el mejor corte del ratio. Mueve el deslizador y mira cómo cambia la impureza; el botón salta al óptimo. En la tira de puntos, cada empresa es un punto (cobre si cayó en impago, azul si no), y la línea es el umbral.</p>
+  <div class="flow" id="cart-corte"></div>
+  <p id="cart-corte-nota"></p>
+</section>
+<section class="panel" id="cart-s3">
+  <h2>El mejor corte de cada ratio, y la raíz</h2>
+  <p>Se repite la búsqueda para los cinco ratios y se compara el mejor corte de cada uno. El que más reduce la impureza es la raíz. Gana ventas sobre deuda con umbral 1,278: las empresas que venden menos de 1,3 veces su deuda caen en impago mucho más seguido que las demás.</p>
+  <div class="flow" id="cart-mejores"></div>
+  <p>Compara con ID3: allí la raíz se eligió por entropía sobre valores de categoría; aquí, por Gini sobre un umbral numérico. El mecanismo es el mismo (partir y medir cuánto se ordenan los grupos); lo que cambió es la vara y la forma del corte.</p>
+</section>
+<section class="panel" id="cart-s4">
+  <h2>El árbol de profundidad 2, y su nota en datos nuevos</h2>
+  <p>Después de la raíz, en cada lado se vuelve a buscar el mejor corte, pero solo con las empresas de ese lado. A la izquierda (ventas bajas respecto de la deuda) el corte que sigue es la liquidez; a la derecha, el endeudamiento. Con profundidad 2 el árbol tiene cuatro hojas y cabe en una hoja de papel. Y ahora sí, la nota que vale: cuántas de las 73 empresas de prueba clasifica bien.</p>
+  <div class="flow" id="cart-arbol"></div>
+  <p><b>Cómo leer la matriz de confusión.</b> Las filas son la realidad y las columnas lo que dijo el árbol. La diagonal son los aciertos. Las dos celdas fuera de la diagonal son errores de tipo distinto: acusar de riesgosa a una empresa que iba a pagar (se pierde un cliente) y aprobar a una que no pagó (se pierde el capital). Un banco no valora igual los dos errores, y el acierto global los mezcla; por eso conviene mirar la matriz y no solo el porcentaje.</p>
+  <p><b>Para qué sirve.</b> Un árbol CART sobre ratios es un scoring de crédito que se lee como un reglamento: "si vende menos de 1,3 veces su deuda y su liquidez es menor a 1,9, alto riesgo". El umbral lo eligió el algoritmo, pero el gerente puede discutirlo, moverlo o exigir que un ratio no se use. Y el mismo mecanismo sirve para predecir un número, por ejemplo la rentabilidad: en vez de Gini se usa la varianza del grupo como impureza, y cada hoja predice el promedio de sus empresas. Esa versión, el árbol de regresión, es la pieza que usa el gradient boosting de la última pestaña.</p>
+</section>
+<div class="nav"><button type="button" id="cart-prev">Anterior</button><button type="button" id="cart-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 04 PODA ===================== -->
+<div class="modelo" id="m-poda">
+<div class="controls">
+  <div class="ctrl" data-pasos="1,2"><label for="poda-d">Profundidad a la que se corta el árbol: <b id="poda-d-v">4</b></label><input type="range" id="poda-d" min="0" max="4" value="4" style="width:200px"></div>
+  <div class="ctrl" data-pasos="0"><label for="poda-k">Empresas que se quitan: <b id="poda-k-v">5</b></label><input type="range" id="poda-k" min="1" max="20" value="5" style="width:160px"></div>
+  <div class="ctrl" data-pasos="0"><label>&nbsp;</label><button type="button" id="poda-otra">Quitar otras al azar</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="poda-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="poda-rail"></nav>
+<section class="panel" id="poda-s0">
+  <h2>Un árbol es inestable: quita cinco empresas y cambia la raíz</h2>
+  <p>Antes de hablar de sobreajuste hay que ver un defecto de los árboles que explica casi todo lo que viene en las pestañas 05 a 07. Un árbol se construye con decisiones golosas: en la raíz elige el mejor corte entre cientos de candidatos que difieren en poco. Si el segundo mejor está apenas detrás del primero, basta con cambiar unas pocas empresas del entrenamiento para que el orden se invierta. Y como todo lo que cuelga de la raíz depende de ella, cambiar la raíz cambia el árbol entero.</p>
+  <p>Compruébalo. Abajo está el árbol de profundidad 2 entrenado con las 146 empresas, y al lado el mismo árbol entrenado con las 146 menos unas pocas elegidas al azar (cuántas, lo controlas arriba). Aprieta "Quitar otras al azar" varias veces y mira cuántas veces cambia la raíz. La tabla de la derecha lleva la cuenta.</p>
+  <div class="flow" id="poda-inest"></div>
+  <p id="poda-inest-nota"></p>
+  <p><b>Por qué importa.</b> Si el modelo cambia tanto con un cambio tan chico en los datos, entonces parte de lo que el árbol "aprendió" no es una propiedad de las empresas sino un accidente de cuáles 146 nos tocaron. A esa sensibilidad se le llama <b>varianza</b> del modelo, y es el problema que resuelven los ensambles. Pero primero, el otro problema: qué pasa cuando al árbol se lo deja crecer sin freno.</p>
+</section>
+<section class="panel" id="poda-s1">
+  <h2>Sobreajuste: un árbol que se sabe los datos de memoria no sirve para empresas nuevas</h2>
+  <p>Un árbol puede seguir partiendo hasta que cada hoja tenga una sola empresa. En ese punto acierta el 100% del entrenamiento, porque cada empresa tiene su propio camino y su propia respuesta. Pero piensa en lo que aprendió: para separar a dos empresas parecidas que tuvieron resultados distintos, inventó una pregunta que las distingue, y esa pregunta describe a <em>esas dos</em> empresas, no a las empresas en general. Con 146 empresas y cinco ratios, siempre hay alguna pregunta que separa a cualquier par. El árbol grande aprende el ruido, y el ruido no se repite en las otras 73.</p>
+  <p>Eso se llama <b>sobreajuste</b>, y se ve en un solo gráfico: el acierto en entrenamiento contra el acierto en prueba, a medida que el árbol crece.</p>
+  <div class="flow" id="poda-curva"></div>
+  <p><b>Cómo leer la curva.</b> El acierto de entrenamiento sube siempre, hasta el 100%. El de prueba sube al principio (el árbol está aprendiendo cosas verdaderas), llega a un máximo alrededor de profundidad 2 o 3, y después baja o se estanca (el árbol está aprendiendo ruido). Todo lo que se aprende después del máximo es memoria, no conocimiento. Es el mismo fenómeno que un polinomio de grado muy alto ajustado a pocos puntos: pasa exactamente por todos y no sirve para ninguno nuevo.</p>
+  <p>Una advertencia sobre la escala: con 73 empresas de prueba, un punto porcentual es menos de una empresa. Diferencias de uno o dos puntos son ruido; lo que importa es la forma de las dos curvas, no el decimal.</p>
+</section>
+<section class="panel" id="poda-s2">
+  <h2>El árbol de profundidad 4, cortado donde tú digas</h2>
+  <p>Mueve la profundidad arriba. Cortar en el nivel \(k\) significa usar como predicción la clase mayoritaria del nodo en que está la empresa después de \(k\) preguntas. Los nodos apagados son los que la poda elimina. En cada nodo se muestra cuántas empresas de entrenamiento llegaron y qué fracción de ellas cayó en impago. Fíjate en los nodos de abajo: varios tienen cuatro o cinco empresas. Una regla basada en cinco casos no es una regla, es una anécdota.</p>
+  <div class="block stage" style="max-width:100%"><div class="t">El árbol (n de entrenamiento y fracción de impago en cada nodo)</div><div id="poda-arbol" class="mwrap"></div></div>
+  <div class="kpi" id="poda-kpi"></div>
+</section>
+<section class="panel" id="poda-s3">
+  <h2>Cómo se frena: pre-poda y post-poda</h2>
+  <p>Hay dos formas de controlar el tamaño de un árbol. La <b>pre-poda</b> es no dejarlo crecer: fijar una profundidad máxima, o exigir un mínimo de empresas por hoja, o una mejora mínima de impureza para aceptar un corte. Son los hiperparámetros de cualquier librería, y el mínimo por hoja tiene una lectura de negocio directa: "no quiero reglas basadas en menos de 20 clientes".</p>
+  <p>La <b>post-poda</b> es lo contrario: dejar crecer el árbol completo y después recortar las ramas que aportan poco. La versión de Breiman se llama poda por costo-complejidad. Para cada nodo interno se calcula cuánto error de entrenamiento ahorra la rama que cuelga de él, y cuántas hojas cuesta mantenerla. El cociente entre las dos cosas es el "precio por hoja" de esa rama:</p>
+  <div class="eq"><span class="name">Ecuación del alfa efectivo de un nodo</span>\[ \alpha_{\text{ef}}(\text{nodo}) = \frac{R(\text{nodo como hoja}) - R(\text{rama})}{\text{hojas de la rama} - 1} \]</div>
+  <p>\(R\) es el error de entrenamiento, medido como fracción de empresas mal clasificadas y pesado por cuántas pasan por ese nodo. Un \(\alpha_{\text{ef}}\) chico significa "muchas hojas para ahorrar poco error": esa rama es la primera candidata a desaparecer. Se poda primero la rama de menor \(\alpha_{\text{ef}}\), se recalcula todo, y así sucesivamente. Eso produce una secuencia de árboles cada vez más chicos, y el punto donde parar se elige con datos que el árbol no vio.</p>
+  <div class="flow" id="poda-ccp"></div>
+  <p><b>Lo que hay que llevarse.</b> Profundidad, mínimo por hoja y \(\alpha\) son tres perillas para lo mismo: cuánta complejidad se le permite al árbol. Aquí cualquier árbol de 3 a 8 hojas acierta entre 75% y 82% en prueba, y ninguno con 20 o más hojas lo supera. La regla práctica es elegir la complejidad con datos que el árbol no vio, nunca con el acierto de entrenamiento. Y hay algo que la poda no arregla: la inestabilidad del primer paso. Un árbol podado sigue siendo un árbol, y sigue cambiando de raíz cuando cambian unas pocas empresas. De eso se ocupan los ensambles.</p>
+</section>
+<div class="nav"><button type="button" id="poda-prev">Anterior</button><button type="button" id="poda-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 05 BAGGING ===================== -->
+<div class="modelo" id="m-bag">
+<div class="controls">
+  <div class="ctrl" data-pasos="2"><label for="bag-emp">Empresa de prueba</label><select id="bag-emp"></select></div>
+  <div class="ctrl" data-pasos="2,3"><label>Ensamble</label><div class="seg" id="bag-tipo"><button type="button" data-t="bag" aria-pressed="true">Bagging</button><button type="button" data-t="rf" aria-pressed="false">Random forest</button></div></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="bag-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="bag-rail"></nav>
+<section class="panel" id="bag-s0">
+  <h2>Qué es un ensamble, y las dos formas de equivocarse de un modelo</h2>
+  <p>Hasta aquí construimos un árbol y lo mejoramos podándolo. Las tres pestañas que quedan hacen otra cosa: en vez de buscar el mejor árbol, entrenan <b>muchos</b> árboles y combinan sus predicciones. A esa combinación se le llama <b>ensamble</b> (en inglés, <em>ensemble</em>, como una orquesta: muchos instrumentos, una sola música). Si le pides a un tasador que estime el precio de una casa, su error depende de sus manías; si le preguntas a veinte y promedias, las manías tienden a cancelarse y el promedio suele ser mejor que casi cualquiera de ellos. Un ensamble de árboles es eso: para clasificar, cada árbol vota y gana la mayoría; para predecir un número, se promedian las predicciones.</p>
+  <p>Hay dos familias, y la diferencia está en cómo se fabrican los árboles. En <b>bagging</b> y <b>random forest</b> (esta pestaña) los árboles se entrenan en paralelo, cada uno sobre una versión distinta de los datos, y son todos igual de importantes en la votación. En <b>boosting</b> (pestañas 06 y 07) los árboles se entrenan en serie, cada uno concentrado en lo que los anteriores hicieron mal, y se suman con pesos. Para entender por qué cualquiera de las dos cosas puede ganarle a un árbol solo, primero hay que separar dos tipos de error que suelen mezclarse.</p>
+  <p>Imagina que conoces la relación verdadera entre una variable \(x\) y un resultado \(y\) (en la vida real nunca se conoce, pero aquí la simulamos: una curva en forma de U con algo de ruido). Sacas una muestra de 60 puntos, ajustas un modelo, y repites el experimento muchas veces con muestras nuevas. Cada muestra da un modelo distinto. Dos cosas pueden salir mal.</p>
+  <p>La primera: que todos los modelos, aunque sean parecidos entre sí, queden lejos de la curva verdadera porque el modelo es demasiado simple para dibujarla. Una recta no puede dibujar una U por más datos que le des. Ese error sistemático, que no se arregla con más muestras, se llama <b>sesgo</b>.</p>
+  <p>La segunda: que cada modelo ajuste bien su propia muestra pero los modelos sean muy distintos entre sí, porque cada uno se aferró a los detalles de sus 60 puntos. Un árbol profundo hace eso: pasa cerca de todos sus puntos, y como los puntos cambian de muestra en muestra, el árbol cambia con ellos. Esa sensibilidad a la muestra se llama <b>varianza</b>. Es la inestabilidad de la pestaña anterior, vista desde arriba.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label>Modelo</label><div class="seg" id="bag-sv-modelo"><button type="button" data-m="recta" aria-pressed="false">Recta</button><button type="button" data-m="profundo" aria-pressed="true">Árbol profundo</button><button type="button" data-m="bagging" aria-pressed="false">Promedio de 25 profundos</button></div></div><div class="ctrl"><label>&nbsp;</label><button type="button" id="bag-sv-otra">Nueva muestra</button></div><div class="ctrl"><label>&nbsp;</label><button type="button" id="bag-sv-20">Superponer 20 muestras</button></div></div>
+  <div class="flow" id="bag-sv"></div>
+  <p id="bag-sv-nota"></p>
+  <p><b>La idea de los ensambles, en una frase.</b> El sesgo no se arregla promediando: si todos los modelos se equivocan en la misma dirección, el promedio también. Pero la varianza sí: si cada modelo se equivoca en una dirección distinta, al promediar muchos, los errores se cancelan. Esa es la apuesta de bagging y random forest: tomar un modelo con poco sesgo y mucha varianza (un árbol profundo), fabricar muchos parecidos pero distintos, y promediarlos. Boosting, en las pestañas 06 y 07, ataca el otro error: parte de modelos con mucho sesgo (tocones) y los suma en serie para bajarlo.</p>
+</section>
+<section class="panel" id="bag-s1">
+  <h2>Bootstrap: fabricar muchas muestras a partir de una</h2>
+  <p>Para promediar muchos árboles hacen falta muchas muestras, y solo tenemos una: las 146 empresas. Bagging (Breiman, 1996; el nombre viene de <em>bootstrap aggregating</em>) resuelve eso con un truco estadístico llamado <b>bootstrap</b>: sortear 146 empresas <em>con reemplazo</em> de la tabla original. Algunas empresas salen dos o tres veces, otras ninguna. Cada sorteo da una tabla parecida a la original pero no igual, y un árbol entrenado en cada sorteo da árboles parecidos pero no iguales. Es exactamente la inestabilidad de la pestaña anterior, ahora usada a favor.</p>
+  <div class="flow" id="bag-boot"></div>
+  <p><b>Por qué promediar reduce la varianza, y hasta dónde.</b> Si los árboles fueran completamente independientes, promediar \(B\) de ellos dividiría la varianza por \(B\). Pero no lo son: todos vienen de las mismas 146 empresas y tienden a encontrar los mismos cortes. La fórmula que lo describe usa la correlación \(\rho\) entre dos árboles cualesquiera:</p>
+  <div class="eq"><span class="name">Ecuación de la varianza de un promedio de árboles correlacionados</span>\[ \mathrm{Var}(\text{promedio}) = \rho\,\sigma^2 + \frac{1 - \rho}{B}\,\sigma^2 \]</div>
+  <p>\(\sigma^2\) es la varianza de un árbol solo y \(B\) cuántos se promedian. El segundo término se hace pequeño con \(B\) grande, pero el primero no depende de \(B\): por muchos árboles que agregues, queda \(\rho\,\sigma^2\). Es la parte del error que todos los árboles comparten, y la única forma de reducirla es bajar \(\rho\), es decir, hacer que los árboles se parezcan menos. Eso es lo que agrega el random forest.</p>
+</section>
+<section class="panel" id="bag-s2">
+  <h2>Los siete árboles votan, y el random forest agrega un segundo sorteo</h2>
+  <p>Aquí hay siete muestras bootstrap y siete árboles. Con <b>bagging</b>, cada árbol es un árbol de profundidad 2 entrenado en su muestra con las cinco variables disponibles. Con <b>random forest</b> (Breiman, 2001) hay un cambio más: en cada corte, el árbol solo puede mirar dos de las cinco variables, elegidas al azar en ese momento. Suena a sabotaje, pero es lo que fuerza a los árboles a usar variables distintas y a parecerse menos entre sí, bajando la \(\rho\) de la fórmula. Cambia entre los dos arriba y compara cuánto se parecen las raíces.</p>
+  <p>Para predecir una empresa nueva, cada árbol vota y gana la mayoría. Elige una empresa de prueba arriba y mira los siete votos.</p>
+  <div class="flow" id="bag-arboles"></div>
+  <div class="flow" id="bag-voto"></div>
+</section>
+<section class="panel" id="bag-s3">
+  <h2>Cuánto acierta cada árbol, y cuánto el conjunto</h2>
+  <p>La pregunta que importa: ¿la votación le gana a un árbol solo? Abajo, el acierto en prueba de cada uno de los siete árboles, el de la votación, y un número que bagging regala sin costo: el error <b>fuera de la bolsa</b> (out of bag). Como cada árbol dejó fuera alrededor de un 37% de las empresas al sortear, esas empresas son datos que ese árbol nunca vio. Para cada empresa de entrenamiento se hace votar solo a los árboles que no la usaron, y se mide el acierto. Es una estimación honesta de prueba sin gastar las 73 empresas reservadas.</p>
+  <div class="kpi" id="bag-kpi"></div>
+  <div class="flow" id="bag-comp"></div>
+  <p><b>Lectura honesta.</b> La votación le gana al árbol típico del conjunto (75% contra 71%) pero no al árbol de dos niveles de la pestaña anterior, que sacó 82%. Esto no es un fracaso del método sino una lección sobre cuándo sirve: con 219 empresas y 5 ratios, un árbol chico bien elegido ya captura casi todo lo que hay en los datos, y no queda mucha varianza que promediar. Además, con 73 empresas de prueba, un punto porcentual es menos de una empresa. Los ensambles brillan con más datos, más variables y más ruido. Aquí se ve el mecanismo, no su mejor caso.</p>
+  <p><b>Para qué sirve, y qué cuesta.</b> Random forest es el caballo de batalla de la clasificación con datos en tabla: casi no hay que ajustarlo, tolera ratios extremos y variables irrelevantes, y entrega una <b>importancia</b> de cada variable (cuánta impureza redujo en total, sumada sobre todos los árboles). El costo es que ya no se lee como un reglamento. Se explica con importancias y con ejemplos, y en crédito, donde hay que justificar cada rechazo, eso tiene un precio regulatorio.</p>
+</section>
+<section class="panel" id="bag-s4">
+  <h2>Por qué votar funciona: el cálculo binomial</h2>
+  <p>Hay una forma de ver el poder de la votación sin árboles de por medio. Supón que tienes \(n\) clasificadores, cada uno se equivoca con probabilidad \(\varepsilon\), y sus errores son independientes (cada uno se equivoca en empresas distintas). La mayoría se equivoca solo si más de la mitad se equivoca a la vez, y esa probabilidad es una suma binomial:</p>
+  <div class="eq"><span class="name">Ecuación de la probabilidad de que la mayoría se equivoque</span>\[ P(\text{mayoría se equivoca}) = \sum_{k > n/2} \binom{n}{k}\,\varepsilon^{k}\,(1 - \varepsilon)^{n - k} \]</div>
+  <p>Con \(\varepsilon = 0{,}35\) (cada clasificador acierta apenas dos de cada tres) y 25 clasificadores, la mayoría falla solo el 6% de las veces. Mueve las perillas y mira tres cosas: con \(\varepsilon\) menor que 0,5 el error de la mayoría cae hacia cero al agregar clasificadores; con \(\varepsilon = 0{,}5\) votar no cambia nada; y con \(\varepsilon\) mayor que 0,5 votar <em>empeora</em>, porque la mayoría se pone de acuerdo en el error.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label for="bag-eps">Error de cada clasificador ε: <b id="bag-eps-v">0,35</b></label><input type="range" id="bag-eps" min="5" max="70" value="35" style="width:200px"></div><div class="ctrl"><label for="bag-n">Clasificadores: <b id="bag-n-v">25</b></label><input type="range" id="bag-n" min="1" max="101" step="2" value="25" style="width:200px"></div></div>
+  <div class="flow" id="bag-binom"></div>
+  <p>El supuesto fuerte es la independencia. En la práctica los árboles se parecen (la \(\rho\) de la fórmula anterior es mayor que cero) y la mejora es menor que la que promete la binomial. Por eso el segundo sorteo del random forest no es un detalle: es lo que acerca los árboles reales al supuesto de este cálculo.</p>
+</section>
+<div class="nav"><button type="button" id="bag-prev">Anterior</button><button type="button" id="bag-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 06 ADABOOST ===================== -->
+<div class="modelo" id="m-ada">
+<div class="controls">
+  <div class="ctrl" data-pasos="1,2"><label for="ada-r">Ronda: <b id="ada-r-v">1</b></label><input type="range" id="ada-r" min="1" max="5" value="1" style="width:200px"></div>
+  <div class="ctrl" data-pasos="1"><label>&nbsp;</label><button type="button" id="ada-play">Animar las 5 rondas</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="ada-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="ada-rail"></nav>
+<section class="panel" id="ada-s0">
+  <h2>Boosting: cada modelo nuevo se concentra en lo que el anterior hizo mal</h2>
+  <p>Bagging entrena árboles en paralelo, cada uno sin saber de los demás, y los promedia. Boosting hace lo contrario: los entrena <b>en serie</b>, y cada uno sabe en qué se equivocó el anterior. El primer modelo mira todas las empresas por igual. El segundo recibe las mismas empresas, pero las que el primero clasificó mal pesan más, así que se concentra en ellas. El tercero se concentra en lo que los dos primeros dejaron mal. Al final todos votan, pero con pesos: los modelos que acertaron más pesan más en la decisión.</p>
+  <p>La pieza clave es que los modelos base son muy simples. AdaBoost (Freund y Schapire, 1996) usa <b>tocones</b>: árboles de un solo corte. Un tocón solo tiene sesgo, casi nada de varianza (con un solo corte no hay mucho que memorizar), y en solitario es un clasificador malo. Boosting construye un clasificador bueno sumando muchos tocones que se corrigen unos a otros. Es la estrategia opuesta a bagging: en vez de bajar la varianza de un modelo complejo, baja el sesgo de un modelo simple.</p>
+  <p>Las cuatro ecuaciones de una ronda, con la notación de siempre: cada empresa \(i\) tiene un peso \(w_i\) (al inicio todos iguales, \(1/n\)), y su clase es \(y_i = +1\) si cayó en impago y \(-1\) si pagó. El tocón de la ronda \(m\) es \(h_m\), y devuelve \(+1\) o \(-1\).</p>
+  <div class="eq"><span class="name">Ecuaciones de una ronda de AdaBoost</span>\[ \varepsilon_m = \sum_i w_i\,[\,h_m(x_i) \neq y_i\,] \qquad \alpha_m = \tfrac{1}{2}\ln\frac{1 - \varepsilon_m}{\varepsilon_m} \qquad w_i \leftarrow \frac{w_i\,e^{-\alpha_m\,y_i\,h_m(x_i)}}{Z} \qquad F(x) = \operatorname{signo}\Big(\sum_m \alpha_m\,h_m(x)\Big) \]</div>
+  <p>Léelas de a una. La primera es el <b>error ponderado</b> del tocón: la suma de los pesos de las empresas que clasificó mal (el corchete vale 1 si se equivocó y 0 si no). Como los pesos suman 1, es un número entre 0 y 1. La segunda es el <b>peso del tocón en el voto final</b>: grande si su error es chico, cero si su error es 0,5 (un tocón que acierta como una moneda no aporta nada) y negativo si es peor que una moneda. La tercera es la <b>reponderación</b>: para cada empresa, si el tocón acertó (\(y_i\,h_m = +1\)) el exponente es negativo y el peso baja; si se equivocó (\(y_i\,h_m = -1\)) el exponente es positivo y el peso sube; \(Z\) es la suma de los pesos nuevos, para que vuelvan a sumar 1. La cuarta es la <b>predicción final</b>: la suma ponderada de los votos de todos los tocones, y el signo decide.</p>
+  <p>Hay una propiedad que ayuda a entender el mecanismo: después de reponderar, las empresas que el tocón recién elegido clasificó mal pesan exactamente la mitad del total. Ese tocón queda "neutralizado" (con los pesos nuevos, acierta como una moneda), y el siguiente tiene que encontrar otra cosa que las separe.</p>
+</section>
+<section class="panel" id="ada-s1">
+  <h2>Ronda a ronda: el peso se concentra en las empresas difíciles</h2>
+  <p>Aquí usamos dos ratios para poder dibujar: ventas sobre deuda en el eje horizontal y deuda sobre activos en el vertical. Cada punto es una empresa de entrenamiento (cobre: impago; azul: paga), y su <b>tamaño es su peso</b> en la ronda elegida. La línea es el tocón de la ronda; el sombreado, el lado donde predice impago; el borde rojo marca las empresas que ese tocón clasificó mal. Mueve la ronda o anima las cinco, y mira cómo los puntos mal clasificados crecen y atraen al siguiente corte.</p>
+  <div class="flow" id="ada-viz"></div>
+  <p id="ada-nota"></p>
+</section>
+<section class="panel" id="ada-s2">
+  <h2>Qué gana cada ronda, y cuándo boosting falla</h2>
+  <p>La tabla muestra, para cada ronda, el tocón elegido, su error ponderado, su peso \(\alpha\), cuánto acierta ese tocón en solitario, y cuánto acierta la suma acumulada de tocones. Fíjate en dos cosas. Los tocones de las rondas 2 en adelante aciertan poco en solitario, porque fueron elegidos con pesos para las empresas difíciles, no para el promedio. Y aun así la suma mejora, al menos en entrenamiento: el conjunto de tocones dibuja una frontera que ningún tocón podría dibujar solo.</p>
+  <div class="flow" id="ada-tabla"></div>
+  <p><b>Por qué funciona.</b> Boosting reduce el sesgo: la suma de muchos cortes simples puede representar formas complicadas, igual que la suma de muchos escalones puede aproximar cualquier curva. <b>Cuándo falla.</b> Por la misma razón, boosting puede seguir bajando el error de entrenamiento mucho después de que la prueba dejó de mejorar: cada ronda agrega un escalón más, y en algún momento los escalones nuevos solo describen ruido. Además es sensible a etiquetas equivocadas: una empresa mal registrada queda "difícil" en todas las rondas, recibe cada vez más peso, y termina distorsionando los cortes. Con cinco rondas y dos ratios, como aquí, se ve el mecanismo pero no su mejor caso; el árbol de profundidad 2 de la pestaña 03 sigue ganando en prueba.</p>
+  <p><b>Para qué sirve.</b> AdaBoost fue el primer boosting que funcionó, y la idea de "modelos simples en serie, cada uno corrigiendo al anterior" es la base de gradient boosting, XGBoost y LightGBM, que hoy dominan los problemas de crédito, fraude y fuga de clientes.</p>
+</section>
+<div class="nav"><button type="button" id="ada-prev">Anterior</button><button type="button" id="ada-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 07 GRADIENT BOOSTING ===================== -->
+<div class="modelo" id="m-gb">
+<div class="controls">
+  <div class="ctrl" data-pasos="1,2"><label for="gb-r">Rondas: <b id="gb-r-v">6</b></label><input type="range" id="gb-r" min="0" max="6" value="6" style="width:200px"></div>
+  <div class="ctrl" data-pasos="1,2"><label for="gb-lr">Tasa de aprendizaje η: <b id="gb-lr-v">0,5</b></label><input type="range" id="gb-lr" min="1" max="10" value="5" style="width:200px"></div>
+  <div class="ctrl" data-pasos="1"><label>&nbsp;</label><button type="button" id="gb-play">Animar las rondas</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="gb-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="gb-rail"></nav>
+<section class="panel" id="gb-s0">
+  <h2>Gradient boosting: sumar árboles chicos que corrigen el error del anterior</h2>
+  <p>Gradient boosting (Friedman, 2001) es la generalización de AdaBoost que domina hoy los datos en tabla. La receta, para predecir un número, se entiende mejor con un ejemplo. Queremos predecir la rentabilidad (roa) de una empresa a partir de un ratio, ventas sobre deuda. Empezamos con la predicción más tonta posible: el promedio de roa, el mismo para todas. Obviamente nos equivocamos; a cada empresa le sobra o le falta algo. Ese "algo" se llama <b>residuo</b>: la diferencia entre lo que vale y lo que predijimos.</p>
+  <p>Ahora ajustamos un árbol chico, un tocón, no a roa sino <em>al residuo</em>: que aprenda dónde nos quedamos cortos y dónde nos pasamos. Sumamos a la predicción una fracción de lo que dice ese tocón. Recalculamos los residuos, que ahora son más chicos, ajustamos otro tocón, sumamos, y así. Cada ronda corrige un poco el error de las anteriores.</p>
+  <div class="eq"><span class="name">Ecuaciones del gradient boosting</span>\[ F_0 = \bar{y} \qquad r_i = y_i - F_{m-1}(x_i) \qquad h_m = \text{tocón ajustado a los } r_i \qquad F_m = F_{m-1} + \eta\,h_m \]</div>
+  <p>\(F_m\) es la predicción después de \(m\) rondas, \(r_i\) el residuo de la empresa \(i\), \(h_m\) el tocón de la ronda (predice el residuo promedio a cada lado de su corte), y \(\eta\) la <b>tasa de aprendizaje</b>. Con \(\eta = 1\) se suma el tocón completo: rápido, pero se sobreajusta pronto. Con \(\eta = 0{,}1\) se avanza de a poco: hacen falta más rondas, pero el resultado es más suave y generaliza mejor. Es la misma disyuntiva que el tamaño del paso en cualquier descenso de gradiente.</p>
+  <p><b>De dónde viene el nombre.</b> Con la pérdida cuadrática (la que usamos aquí), el residuo es exactamente el gradiente negativo de la pérdida respecto de la predicción. Así que cada ronda da un paso de descenso de gradiente, pero en vez de mover parámetros, agrega una función (un tocón) que apunta en la dirección del gradiente. Esa lectura es lo que permite usar la misma receta con cualquier pérdida derivable: para clasificar se usa la pérdida logística, y el residuo pasa a ser \(y - p\), la diferencia entre lo que pasó y la probabilidad que el modelo le daba.</p>
+  <p><b>Y si la respuesta es una categoría.</b> Aquí elegimos un ejemplo con respuesta numérica (roa) porque el residuo se dibuja y se entiende sin esfuerzo. Pero la receta es la misma para clasificar, y conviene ver dónde entra cada pieza de las pestañas anteriores. Cuando \(y\) es 1 (impago) o 0 (paga), la suma de árboles \(F(x)\) no predice directamente la clase sino el <b>logaritmo de la razón de probabilidades</b> (el log-odds, el mismo que aparece en una regresión logística), y la probabilidad se recupera con la sigmoide:</p>
+  <div class="eq"><span class="name">Ecuaciones del gradient boosting para clasificar</span>\[ p_i = \frac{1}{1 + e^{-F(x_i)}} \qquad L = -\sum_i \left[\, y_i \log p_i + (1 - y_i)\log(1 - p_i) \,\right] \qquad r_i = y_i - p_i \]</div>
+  <p>\(p_i\) es la probabilidad de impago que el modelo le asigna a la empresa \(i\), \(L\) es la <b>entropía cruzada</b> de la primera pestaña (la sorpresa acumulada del modelo), y \(r_i\) es el gradiente negativo de esa pérdida respecto de \(F(x_i)\), que resulta ser algo muy simple: la diferencia entre lo que pasó y la probabilidad que el modelo le daba. Una empresa que cayó en impago cuando el modelo decía 0,2 tiene residuo 0,8; una que pagó cuando el modelo decía 0,2 tiene residuo −0,2. Cada ronda ajusta un árbol chico a esos residuos, exactamente como aquí se ajusta a \(y - F\), y lo suma a \(F\). La predicción inicial \(F_0\) es el log-odds de la fracción de impagos. Lo único que cambia es el valor que se pone en cada hoja, que en vez del promedio del residuo es un paso de Newton sobre la pérdida (el residuo promedio dividido por el promedio de \(p(1-p)\)); las librerías lo hacen solas.</p>
+  <p>Dicho al revés: AdaBoost es este mismo esquema con otra pérdida (la exponencial), y por eso sus pesos y sus alfas salen de fórmulas cerradas. Gradient boosting con entropía cruzada es lo que hacen XGBoost y LightGBM cuando clasifican, y es la razón de que la entropía cruzada de la primera pestaña aparezca hasta el final del recorrido.</p>
+</section>
+<section class="panel" id="gb-s1">
+  <h2>La escalera se construye ronda a ronda</h2>
+  <p>Con una sola variable se puede dibujar la predicción completa: es una función escalonada, porque cada tocón agrega un escalón. La ronda 0 es una línea horizontal en el promedio. Cada ronda siguiente agrega un salto en el corte que mejor explica el residuo. Mueve las rondas y la tasa de aprendizaje arriba y mira cómo cambia la escalera; la línea punteada es la ronda anterior, para que se vea qué agregó la última.</p>
+  <div class="flow" id="gb-viz"></div>
+  <p id="gb-nota"></p>
+</section>
+<section class="panel" id="gb-s2">
+  <h2>El error por ronda, la familia, y qué preguntar</h2>
+  <p>La tabla muestra el error cuadrático medio (el promedio de los residuos al cuadrado) en entrenamiento y en prueba después de cada ronda. En entrenamiento baja siempre, por construcción. En prueba baja mientras las rondas capturan estructura real y deja de bajar cuando empiezan a capturar ruido. Por eso el número de rondas es un parámetro que se elige con <b>parada temprana</b>: se mira el error en datos de validación y se detiene cuando deja de mejorar.</p>
+  <div class="flow" id="gb-tabla"></div>
+  <p><b>La familia.</b> Todo lo que hoy se usa en producción es esta misma receta con mejoras de ingeniería. XGBoost (2014) agregó regularización explícita en las hojas, manejo de datos faltantes y cálculo en paralelo, y fue el que ganó las competencias. LightGBM (2017) crece los árboles hoja a hoja en vez de nivel a nivel y agrupa los valores de cada variable en cubetas: mucho más rápido con millones de filas. CatBoost (2018) trata las variables de categoría sin preprocesar y usa árboles simétricos. Elegir entre ellos importa menos que elegir bien las perillas.</p>
+  <p><b>Las perillas, en orden de importancia.</b> El número de rondas y la tasa de aprendizaje van juntas: más rondas con tasa chica suele ser mejor, y se eligen con parada temprana. Después, el tamaño de cada árbol: tocones para efectos simples, profundidad 3 a 6 cuando hay interacciones entre variables. Después, el submuestreo de filas y de columnas en cada ronda, que le presta a boosting un poco de la robustez del random forest. Y por último, la regularización de las hojas.</p>
+  <p><b>Qué preguntar cuando alguien presenta un modelo de boosting.</b> Cuántas rondas y cómo se eligió el número. Qué error da en datos que nunca vio, no en entrenamiento. Qué variables pesan más y si eso tiene sentido de negocio. Y cómo se explica una predicción individual, porque un cliente rechazado va a preguntar por qué, y "lo dijo el modelo" no es una respuesta.</p>
+</section>
+<div class="nav"><button type="button" id="gb-prev">Anterior</button><button type="button" id="gb-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== 08 IMPORTANCIA ===================== -->
+<div class="modelo" id="m-imp">
+<div class="controls">
+  <div class="ctrl" data-pasos="2"><label>&nbsp;</label><button type="button" id="imp-otra">Barajar de nuevo</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="imp-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="imp-rail"></nav>
+<section class="panel" id="imp-s0">
+  <h2>Qué significa que una variable "importe": los coeficientes de una regresión</h2>
+  <p>Después de entrenar cualquier modelo, la pregunta que viene del negocio es siempre la misma: ¿qué variables pesan? Un gerente quiere saber si lo que decide el riesgo es la liquidez o el endeudamiento; un regulador quiere saber que el modelo no se apoya en algo indebido. Cada familia de modelos responde de una forma distinta, y conviene tener claro qué responde cada una antes de comparar números.</p>
+  <p>La respuesta clásica viene de la regresión. Para una respuesta numérica, la regresión lineal ajusta \(y = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k\), y cada coeficiente \(\beta_j\) dice cuánto cambia \(y\) cuando \(x_j\) sube una unidad <em>manteniendo las demás variables fijas</em>. Para una respuesta de sí o no, la regresión logística hace lo mismo sobre el logaritmo de la razón de probabilidades:</p>
+  <div class="eq"><span class="name">Ecuación de la regresión logística</span>\[ \log \frac{p}{1 - p} = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k \]</div>
+  <p>\(p\) es la probabilidad de impago, \(x_j\) son los ratios y \(\beta_j\) sus coeficientes. Un \(\beta_j\) positivo dice que el ratio sube el riesgo; negativo, que lo baja. El coeficiente tiene <b>signo</b> y tiene <b>unidades</b>: \(\beta\) para la razón corriente está "por unidad de razón corriente", y el de ln activos "por unidad de logaritmo", así que sus tamaños no se pueden comparar directamente. Para compararlos se estandarizan las variables (se restan su promedio y se dividen por su desviación estándar) y entonces cada \(\beta\) se lee como el efecto de moverse una desviación estándar. Eso es lo que muestra la tabla: una regresión logística ajustada con las 146 empresas de entrenamiento, con los ratios estandarizados.</p>
+  <div class="flow" id="imp-logit"></div>
+  <p id="imp-logit-nota"></p>
+  <p><b>Lo que el coeficiente promete y lo que supone.</b> Promete una lectura limpia: dirección, tamaño y, con su error estándar, si se distingue de cero. A cambio supone que el efecto de cada ratio es el mismo en todo su rango (lineal en el log-odds) y que no depende del valor de los otros ratios (aditivo). Cuando la relación tiene forma de U o de escalón, o cuando "la garantía importa solo si la deuda es alta", el coeficiente promedia todo eso en un solo número, y ese número puede salir chico, o con el signo cambiado, aunque la variable importe mucho. Los árboles y los ensambles no tienen ese supuesto, pero tampoco tienen coeficientes; lo que tienen se explica en los pasos siguientes.</p>
+</section>
+<section class="panel" id="imp-s1">
+  <h2>En un árbol: cuánta impureza reduce cada variable</h2>
+  <p>Un árbol no tiene coeficientes, pero tiene algo que ya calculamos muchas veces: en cada nodo, la pregunta elegida <b>reduce la impureza</b> del grupo en una cantidad conocida (la ganancia de información en ID3, la caída del Gini en CART, la caída de la varianza en regresión). La importancia de una variable es la suma de esas reducciones en todos los nodos donde se preguntó por ella, pesando cada nodo por la fracción de empresas que pasó por él, y normalizada para que las importancias sumen 100%:</p>
+  <div class="eq"><span class="name">Ecuación de la importancia por impureza</span>\[ \text{imp}(x_j) \;\propto\; \sum_{\text{nodos } t \text{ que preguntan por } x_j} \frac{n_t}{n}\,\Big[\, I(t) - \frac{n_{t,\text{izq}}}{n_t} I(t_{\text{izq}}) - \frac{n_{t,\text{der}}}{n_t} I(t_{\text{der}}) \Big] \]</div>
+  <p>\(n_t\) es cuántas empresas llegan al nodo \(t\), \(n\) el total, e \(I\) la impureza que use el árbol (entropía, Gini o varianza). El corchete es la reducción de impureza que consigue ese nodo; multiplicarla por \(n_t / n\) hace que un corte en la raíz, por el que pasan todas, pese más que uno abajo, por el que pasan cinco.</p>
+  <div class="flow" id="imp-arbol"></div>
+  <p id="imp-arbol-nota"></p>
+  <p><b>Lo que esta importancia dice y lo que no.</b> Dice cuánto usó el árbol cada variable para ordenar los datos, con relaciones de cualquier forma e interacciones incluidas. No dice la dirección del efecto (no hay signo: la misma variable puede subir el riesgo en una rama y bajarlo en otra), no tiene unidades ni error estándar, y hereda la inestabilidad del árbol: con otras 146 empresas la raíz puede cambiar y con ella el ranking. Además tiene un sesgo conocido: una variable numérica con muchos valores distintos ofrece muchos más cortes candidatos que una categoría de dos valores, y por eso tiende a ganar importancia "gratis", el mismo problema de la trampa del identificador de la primera pestaña. Y si dos ratios están muy correlacionados, el árbol elige uno y la importancia del otro queda en cero aunque contenga casi la misma información.</p>
+</section>
+<section class="panel" id="imp-s2">
+  <h2>En un bosque: sumar sobre los árboles, o barajar una columna</h2>
+  <p>Con muchos árboles, la importancia por impureza se calcula igual y se promedia sobre el bosque. El promedio arregla la inestabilidad (una variable que en un árbol quedó en cero aparece en otros) y por eso la importancia de un random forest es mucho más confiable que la de un árbol solo. Los sesgos hacia variables con muchos cortes y el reparto arbitrario entre variables correlacionadas siguen ahí.</p>
+  <p>Hay una segunda forma de medir importancia que no mira dentro del modelo y por eso sirve para cualquiera: la <b>importancia por permutación</b>. Se toma el modelo ya entrenado y las empresas de prueba, se mide el acierto, y después se <em>baraja</em> una columna (se mezclan los valores de ese ratio entre las empresas, rompiendo su relación con la respuesta) y se vuelve a medir. Si el acierto cae mucho, el modelo dependía de esa variable; si no cambia, no la estaba usando de verdad.</p>
+  <div class="eq"><span class="name">Ecuación de la importancia por permutación</span>\[ \text{imp}_{\text{perm}}(x_j) = \text{acierto}(\text{datos originales}) - \text{acierto}(\text{datos con } x_j \text{ barajada}) \]</div>
+  <p>Como el barajado es aleatorio, se repite varias veces y se promedia. Aquí se hace con la votación de los siete árboles de bagging de la pestaña 05 sobre las 73 empresas de prueba, con 20 barajados por variable; aprieta "Barajar de nuevo" para ver cuánto se mueve.</p>
+  <div class="flow" id="imp-bosque"></div>
+  <p id="imp-bosque-nota"></p>
+  <p><b>Cuál usar.</b> La importancia por impureza es gratis (la librería la entrega al terminar de entrenar) y describe cómo se construyó el modelo. La de permutación cuesta más cálculo, pero mide lo que importa en el negocio, cuánto empeora la predicción si esa información no estuviera, y se puede calcular sobre datos de prueba, así que no premia variables que solo sirvieron para memorizar el entrenamiento. Su punto débil es el mismo de siempre con variables correlacionadas: si barajas una y el modelo tiene otra casi igual, el acierto casi no cae y las dos parecen poco importantes.</p>
+</section>
+<section class="panel" id="imp-s3">
+  <h2>En boosting: lo mismo, sumando ronda a ronda</h2>
+  <p>En AdaBoost y en gradient boosting los árboles no se promedian, se suman, pero la importancia se calcula con la misma idea: se acumula, ronda a ronda, cuánto aportó cada variable. Para AdaBoost con tocones cada ronda usa una sola variable, así que lo natural es sumar el peso \(\alpha\) de los tocones que preguntaron por ella (o la reducción de impureza ponderada que consiguió cada uno). Con las cinco rondas de la pestaña 06:</p>
+  <div class="flow" id="imp-ada"></div>
+  <p>En gradient boosting cada ronda ajusta un árbol chico al residuo, y ese árbol tiene sus nodos con su reducción de impureza (de la varianza del residuo, en regresión; de una impureza equivalente sobre los residuos \(y - p\), en clasificación). La importancia de una variable es la suma de esas reducciones sobre todas las rondas, normalizada. En el ejemplo de la pestaña 07 hay una sola variable, así que se lleva el 100% y no hay nada que comparar; con cinco ratios la cuenta es idéntica a la del bosque. XGBoost reporta tres versiones de esto: <em>gain</em> (la reducción de pérdida acumulada, que es la que corresponde a la ecuación del paso 1), <em>cover</em> (cuántas empresas pasaron por los nodos de esa variable) y <em>weight</em> (en cuántos nodos apareció). Conviene mirar <em>gain</em>; <em>weight</em> premia a las variables con muchos cortes posibles.</p>
+  <p>Una advertencia particular de boosting: como cada árbol corrige a los anteriores, una variable puede aparecer mucho en rondas tardías solo para ajustar ruido residual. La importancia por impureza la cuenta igual; la de permutación sobre datos de prueba, no. Cuando las dos difieren mucho, suele ser señal de sobreajuste.</p>
+</section>
+<section class="panel" id="imp-s4">
+  <h2>Todo junto: los betas y las importancias, lado a lado</h2>
+  <p>La tabla reúne, para los cinco ratios, el coeficiente estandarizado de la regresión logística (con su signo), la importancia por impureza del árbol de profundidad 2, la del random forest de 100 árboles y la de permutación sobre el bagging. Todas están calculadas con la misma partición, así que las diferencias son de método, no de datos.</p>
+  <div class="flow" id="imp-todo"></div>
+  <p id="imp-todo-nota"></p>
+  <p><b>Cómo leer las diferencias.</b> Los cuatro números responden preguntas distintas. El coeficiente responde "si muevo este ratio una desviación estándar y dejo todo lo demás igual, cuánto cambia el log-odds de impago, en promedio y suponiendo una relación lineal". La importancia por impureza responde "cuánto usó el modelo este ratio para separar a las empresas de entrenamiento". La de permutación responde "cuánto acierto pierdo en empresas nuevas si esta información no estuviera". Que un ratio sea el primero en una lista y el tercero en otra no es una contradicción: es que las listas miden cosas distintas, y con 146 empresas las tres son ruidosas.</p>
+  <p><b>Lo que ninguna importancia da, y cómo se recupera.</b> Ninguna de las tres medidas de árboles tiene signo: dicen que la liquidez importa, no si mucha liquidez sube o baja el riesgo. Para recuperar la dirección hay dos caminos. Uno es mirar las hojas, como hicimos en las pestañas 02 y 03: la regla "ventas sobre deuda menor a 1,28 implica más impago" es una dirección. El otro, para ensambles, son los métodos de contribución por empresa, de los que el más usado es SHAP: reparten la predicción de <em>cada</em> empresa entre sus variables, con signo, y al promediar los valores absolutos sobre todas las empresas dan una importancia global que sí trae dirección. Es lo más parecido a un coeficiente que tiene un ensamble, con una diferencia: el efecto de un ratio puede ser distinto para cada empresa, que es justamente lo que la regresión suponía que no pasaba.</p>
+  <p><b>Para qué sirve.</b> Para elegir la explicación correcta según a quién se le habla. A un comité de crédito que exige reglas: un árbol chico y sus hojas. A un gerente que pregunta qué mirar: importancias del bosque, con la advertencia de que no traen signo. A un regulador que exige justificar cada rechazo: contribuciones por cliente. Y a un econometrista que ya tiene su regresión: los betas siguen siendo la lectura más limpia cuando la relación es aproximadamente lineal, y el ensamble le dice cuándo no lo es.</p>
+</section>
+<div class="nav"><button type="button" id="imp-prev">Anterior</button><button type="button" id="imp-next">Siguiente</button></div>
+</div>
+
+<!-- ===================== BONUS C5.0 ===================== -->
+<div class="modelo" id="m-c5">
+<div class="controls">
+  <div class="ctrl" data-pasos="1"><label for="c5-attr">Atributo</label><select id="c5-attr"><option value="deuda" selected>deuda</option><option value="tamano">tamaño</option><option value="garantia">garantía</option><option value="historial">historial</option></select></div>
+  <div class="ctrl" data-pasos="2"><label for="c5-emp">Empresa de prueba</label><select id="c5-emp"></select></div>
+  <div class="ctrl" data-pasos="2"><label for="c5-falta">Ratio que falta</label><select id="c5-falta"></select></div>
+  <div class="ctrl" data-pasos="3"><label for="c5-cf">Factor de confianza cf: <b id="c5-cf-v">0,25</b></label><select id="c5-cf"><option value="0.01">0,01</option><option value="0.05">0,05</option><option value="0.10">0,10</option><option value="0.20">0,20</option><option value="0.25" selected>0,25</option></select></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="c5-replay">Volver a animar</button></div>
+</div>
+<nav class="rail" id="c5-rail"></nav>
+<section class="panel" id="c5-s0">
+  <h2>Por qué C5.0: un caso de fuga de clientes, de principio a fin</h2>
+  <h3>El problema</h3>
+  <p>Una empresa de telecomunicaciones pierde cada año a uno de cada cinco clientes. Retener a un cliente cuesta mucho menos que conseguir uno nuevo, pero el presupuesto de retención no alcanza para todos: hay que saber <b>quién</b> se va a ir y, sobre todo, <b>por qué</b>, porque la acción es distinta según la causa. A un cliente nuevo que todavía no conoce el servicio se lo llama; a uno con reclamos acumulados se le resuelve el reclamo; a uno de una zona con mala cobertura no sirve ofrecerle un descuento. El equipo comercial necesita segmentos con una regla clara cada uno, no una lista de probabilidades.</p>
+  <h3>Los datos</h3>
+  <p>3.000 clientes, simulados para este material con una semilla fija (el generador va con el resto del material, así que el ejemplo es reproducible y se puede modificar). De cada cliente se conocen siete cosas: la <b>región</b> donde vive (las 16 regiones de Chile, una variable categórica con muchos valores), el <b>plan</b> (prepago, postpago o empresa), la <b>antigüedad</b> en meses, el <b>gasto mensual</b> en pesos, los <b>reclamos</b> en los últimos 12 meses, los <b>gigabytes de datos</b> que usa al mes y la <b>edad</b>. Y lo que queremos predecir: si se fue (<code>churn = 1</code>) o se quedó. Como en cualquier base real, hay huecos: el uso de datos y la edad faltan en cerca del 8% de los clientes. Entrenamos con los primeros 2.000 y medimos en los otros 1.000.</p>
+  <div class="flow" id="c5-datos"></div>
+  <p id="c5-datos-nota"></p>
+  <h3>La solución: un árbol que trabaja con los datos tal como vienen</h3>
+  <p>Esta tabla tiene las tres cosas que a un árbol de scikit-learn le complican la vida: dos columnas de texto, una de ellas con 16 valores, y huecos. Con scikit-learn hay que convertir región y plan en columnas de ceros y unos (una por valor: 24 columnas en total) y rellenar los huecos con algo, típicamente la mediana. Con C5.0 no hay nada que preparar: la tabla entra tal cual, y el algoritmo hace cuatro cosas que el equipo comercial nota de inmediato. Trabaja con variables numéricas y categóricas a la vez. Cuando una categórica tiene muchos valores, <b>agrupa los valores</b> en el corte ("región en {La Araucanía, Los Ríos, Tarapacá}") en vez de abrir una rama por valor o de necesitar 16 columnas. <b>Maneja los valores faltantes</b> sin imputar: el cliente baja por las dos ramas con pesos, y hasta puede aparecer "datos faltante" como condición de una regla. Y para cada cliente devuelve <b>la regla exacta que se activó</b>, que es una regla de negocio y sugiere una acción. El resultado es un árbol más chico y más legible que el de scikit-learn con desempeño igual o mejor. Y si la interpretabilidad deja de importar, <code>trials = 10</code> lo convierte en un ensamble boosteado sin cambiar nada más.</p>
+  <p>Comparamos árbol contra árbol con el mismo freno (mínimo de clientes por hoja), y ensamble contra ensamble, sobre los 1.000 clientes de prueba:</p>
+  <div class="block stage" style="max-width:100%"><div class="t">c50py contra scikit-learn (1.000 clientes de prueba; predecir "se queda" para todos acierta 81,3%)</div><div id="c5-churn-tabla" class="mwrap"></div></div>
+  <p id="c5-churn-nota"></p>
+  <h3>Los dos árboles, dibujados</h3>
+  <p>No es solo el tamaño. Mira qué pregunta cada uno. El de C5.0 (mínimo 25 por hoja) abre por la región, sigue por los reclamos y vuelve a agrupar regiones más abajo: doce hojas, cada una un segmento con nombre. El de scikit-learn, con el mismo freno, tiene 55 hojas y 11 niveles, abre por antigüedad y sigue por gasto; cuando alcanza a mencionar una región, lo hace de a una ("región = La Araucanía ≤ 0,5", cuatro veces, siempre abajo), porque con 16 columnas de ceros y unos cada una separa un grupo chico y pierde contra cualquier umbral numérico. La señal de la región estaba en los datos; lo que cambió es si el algoritmo podía verla en una sola pregunta. Los dos gráficos se desplazan hacia el lado.</p>
+  <div class="block stage" style="max-width:100%"><div class="t">c50py 0.3.0, trials = 1, mínimo 25 por hoja, poda por defecto (en cada nodo: n de entrenamiento y fracción que se fue)</div><div id="c5-g-c5" class="mwrap"></div></div>
+  <div class="block stage" style="max-width:100%"><div class="t">scikit-learn DecisionTreeClassifier, mínimo 25 por hoja, sobre las 24 columnas (55 hojas: desplaza hacia el lado)</div><div id="c5-g-sk" class="mwrap"></div></div>
+  <div class="flow">
+    <div class="block stage" style="flex:1 1 440px"><div class="t">El mismo árbol de c50py como texto: clf.print_tree()</div><pre id="c5-arbol-c5" style="margin:0;font-size:.78rem;line-height:1.35;overflow-x:auto;max-height:420px;overflow-y:auto"></pre></div>
+    <div class="block stage" style="flex:1 1 440px"><div class="t">El de scikit-learn como texto: export_text()</div><pre id="c5-arbol-sk" style="margin:0;font-size:.78rem;line-height:1.35;overflow-x:auto;max-height:420px;overflow-y:auto"></pre></div>
+  </div>
+  <h3>La regla que se activó, cliente por cliente</h3>
+  <p>Esto es lo que convierte el árbol en una herramienta de retención. <code>predict_rule</code> devuelve, para cada cliente, la cadena de condiciones que lo llevó a su hoja, y cada hoja tiene una acción. Elige un cliente de prueba:</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label for="c5-cli">Cliente</label><select id="c5-cli"></select></div></div>
+  <div class="flow" id="c5-cliente"></div>
+  <p id="c5-cliente-nota"></p>
+  <h3>Y si lo que importa es solo acertar</h3>
+  <p>Las dos últimas filas de la tabla son <code>trials = 10</code>: diez árboles en serie con el esquema de AdaBoost de la pestaña 06, sin tocar nada más, contra el gradient boosting de scikit-learn. Quedan a la par (0,790 contra 0,802 de AUC, mismo acierto), a cambio de perder la regla por cliente. Y hay un camino intermedio: sin poda y con mínimo 50 por hoja, un solo árbol de 27 hojas llega a 0,767 de AUC, porque conserva hojas que no cambian la clase predicha pero sí afinan la probabilidad; la poda de C4.5 mira el error, no el orden, y las quita. Es la decisión de siempre entre explicar y acertar, y C5.0 la deja en un parámetro.</p>
+  <h3>De dónde sale c50py</h3>
+  <p>Al cerrar la pestaña 02 quedó dicho que después de ID3 la historia se bifurcó: C4.5 por un lado y CART por otro. Todo lo que vino después en este recorrido siguió la rama de CART, que es la de scikit-learn. C4.5 (Quinlan, 1993) y su sucesor comercial C5.0 (también llamado See5) fueron durante años el árbol de referencia en la industria, y hasta hoy en R se usan con el paquete <code>C50</code>. Quinlan liberó el código fuente en C de C5.0 en 2011. A partir de ese código, David Díaz, autor de este material, escribió <b>c50py</b>, la primera implementación de C5.0 en Python: desde cero en Python y NumPy, con la interfaz de scikit-learn (<code>fit</code>, <code>predict</code>, <code>predict_proba</code>, <code>score</code>, y entra en un <code>Pipeline</code> o un <code>GridSearchCV</code>), y con cosas que ni el C5.0 original ni el paquete de R ofrecen: un <code>C5Regressor</code> para respuestas numéricas, la regla exacta que se aplicó a cada predicción, y exportación a Graphviz. Todo lo que muestra esta pestaña usa la versión 0.3.0, que trae la poda pesimista y la selección de cortes tal como están en el código de C4.5.</p>
+  <div class="block stage"><div class="t">Dónde encontrarlo</div><p style="margin:0">Instalación: <code>pip install c50py</code> · Código y documentación: <a href="https://github.com/daviddiazsolis/c50py">github.com/daviddiazsolis/c50py</a> · Paquete: <a href="https://pypi.org/project/c50py/">pypi.org/project/c50py</a></p></div>
+  <p>Los pasos siguientes abren el mecanismo de cada una de las cuatro cosas: el gain ratio y los subconjuntos, los valores faltantes, la poda, y el boosting.</p>
+</section>
+<section class="panel" id="c5-s1">
+  <h2>Cortes por subconjuntos de categorías, y el gain ratio</h2>
+  <p>ID3 abre una rama por cada valor del atributo: deuda baja, media y alta son tres ramas. C5.0 hace algo distinto: prueba todas las formas de separar los valores en <em>dos</em> grupos ({baja} contra {media, alta}, {media} contra {baja, alta}, y así) y elige la mejor. Con tres valores hay tres particiones posibles; con cuatro, siete; con \(k\) valores, \(2^{k-1} - 1\). Por eso las librerías ponen un tope (en <code>c50py</code>, <code>max_categories_exhaustive</code>, 12 por defecto) y sobre él usan una heurística.</p>
+  <p>Para comparar cortes que parten en distinto número de pedazos, C4.5 divide la ganancia por la entropía de la propia partición, que llama <em>split information</em>:</p>
+  <div class="eq"><span class="name">Ecuación del gain ratio</span>\[ \text{gain ratio}(S) = \frac{H(Y) - \sum_{g} \frac{n_g}{n} H(Y \text{ en } g)}{-\sum_{g} \frac{n_g}{n} \log_2 \frac{n_g}{n}} \]</div>
+  <p>El numerador es la ganancia de información de la pestaña 01: la entropía de la respuesta \(Y\) menos el promedio ponderado de la entropía dentro de cada grupo \(g\) que forma el corte \(S\), con \(n_g\) empresas en el grupo y \(n\) en total. El denominador es la entropía de los tamaños de los grupos: vale 1 bit si el corte parte en dos mitades, 1,58 si parte en tres tercios, y crece con el número de pedazos. Dividir castiga los cortes que ganan "gratis" por partir mucho.</p>
+  <p>Elige un atributo arriba y compara: la partición en todos los valores (lo que hace ID3) contra cada partición binaria (lo que hace C5.0).</p>
+  <div class="flow" id="c5-sub"></div>
+  <p id="c5-sub-nota"></p>
+  <p>Con las 14 empresas, <code>c50py</code> construye este árbol (sin poda, con gain ratio y cortes binarios). Compáralo con el de ID3 en la pestaña 02: la raíz es la misma pregunta escrita en binario, y el resto se reparte distinto porque después de "deuda en {baja}" quedan 10 empresas mezcladas en vez de dos grupos de 5.</p>
+  <div class="block stage"><div class="t">c50py sobre las 14 empresas: clf.print_tree()</div><pre style="margin:0;font-size:.82rem;line-height:1.35;overflow-x:auto">if deuda in {baja}:
+  Predict si | dist={'no': 0, 'si': 4}
+else:
+  if garantia in {no}:
+    if tamano in {pequena}:
+      if deuda in {media}:
+        if historial in {bueno}:
+          Predict si | dist={'no': 0, 'si': 1}
+        else:
+          Predict no | dist={'no': 1, 'si': 0}
+      else:
+        Predict no | dist={'no': 1, 'si': 0}
+    else:
+      Predict no | dist={'no': 3, 'si': 0}
+  else:
+    if tamano in {grande}:
+      Predict si | dist={'no': 0, 'si': 2}
+    else:
+      if deuda in {alta}:
+        Predict si | dist={'no': 0, 'si': 1}
+      else:
+        Predict no | dist={'no': 1, 'si': 0}</pre></div>
+  <p>Ocho hojas para 14 empresas: como ID3, C5.0 sin freno parte hasta que cada grupo queda puro, y con tan pocas empresas eso significa memorizar. Lo que lo frena es la poda del paso 3 y el mínimo de empresas por hoja.</p>
+</section>
+<section class="panel" id="c5-s2">
+  <h2>Valores faltantes: la empresa baja por las dos ramas</h2>
+  <p>En la práctica, a una empresa le puede faltar un ratio (no entregó el balance completo, o el dato es un cero dividido por cero). CART necesita que alguien rellene ese hueco antes, típicamente con la mediana. C5.0 hace algo más honesto. Al entrenar, si a una empresa le falta la variable por la que pregunta un nodo, no se la descarta ni se la manda a un lado: se la manda a <b>las dos ramas</b>, con un peso igual a la fracción de las empresas conocidas que fue por cada lado. Por eso en los árboles de <code>c50py</code> entrenados con datos incompletos las hojas muestran conteos con decimales, como "82,46 pagan, 32,78 no": son empresas enteras más pedazos de empresas.</p>
+  <p>Al predecir pasa lo mismo. Si a la empresa nueva le falta la variable del nodo, la predicción es el promedio ponderado de lo que dicen las dos ramas:</p>
+  <div class="eq"><span class="name">Ecuación de la predicción con un valor faltante</span>\[ P(\text{impago} \mid x) = \frac{n_{\text{izq}}}{n_{\text{izq}} + n_{\text{der}}}\, P_{\text{izq}}(\text{impago} \mid x) + \frac{n_{\text{der}}}{n_{\text{izq}} + n_{\text{der}}}\, P_{\text{der}}(\text{impago} \mid x) \]</div>
+  <p>\(n_{\text{izq}}\) y \(n_{\text{der}}\) son cuántas empresas de entrenamiento con la variable conocida fueron por cada lado en ese nodo, y \(P_{\text{izq}}\) y \(P_{\text{der}}\) son las probabilidades que entrega cada rama al seguir bajando con los demás ratios de la empresa (que sí se conocen). También al elegir el corte hay una corrección: la ganancia se calcula solo con las empresas que tienen el valor, y se multiplica por la fracción de empresas conocidas, para que una variable con muchos huecos no gane por lo poco que se ve de ella.</p>
+  <p>Pruébalo con el árbol CART de profundidad 2 de la pestaña 03 (el mecanismo es el mismo en cualquier árbol): elige una empresa de prueba y qué ratio le falta.</p>
+  <div class="flow" id="c5-falt"></div>
+  <p id="c5-falt-nota"></p>
+  <p><b>Lo que da en estos datos.</b> Borramos al azar el 20% de los valores de los ratios (en entrenamiento y en prueba) y comparamos tres formas de seguir adelante. Con la poda por defecto y mínimo 1 por hoja, <code>c50py</code> con propagación fraccionaria queda en un árbol de 3 hojas y acierta 64,4% en prueba; un CART de scikit-learn con los huecos rellenados con la mediana, 60,3%; un CART entrenado solo con las 46 filas completas, 76,7%. Sin huecos, los dos aciertan 76,7%. Con 73 empresas de prueba estas diferencias son de tres a nueve empresas y no permiten declarar un ganador; lo que sí muestran es que un 20% de huecos en 5 ratios deja pocas empresas completas (46 de 146) y mucha incertidumbre en las demás, y que los tres caminos la reparten distinto. La ventaja de la propagación fraccionaria es que no inventa un valor: conserva la incertidumbre y la muestra en la predicción, como los conteos con decimales de arriba.</p>
+</section>
+<section class="panel" id="c5-s3">
+  <h2>Poda pesimista: podar sin datos de validación</h2>
+  <p>La poda por costo-complejidad de la pestaña 04 necesita datos que el árbol no vio para decidir cuánto cortar. Quinlan quería podar usando solo el entrenamiento, y su truco es reconocer que el error de entrenamiento de una hoja es optimista, y corregirlo hacia arriba. Una hoja con \(N\) casos y \(E\) errores se trata como una muestra binomial: si el error verdadero fuera \(p\), ver solo \(E\) errores en \(N\) intentos sería raro si \(p\) fuera mucho mayor. Se toma el valor de \(p\) más grande que todavía es compatible con lo observado, al nivel de confianza \(cf\), y se le cobra a la hoja ese error en vez del observado. En el código de C4.5 (<code>AddErrs</code> en <code>prune.c</code>) eso se calcula así:</p>
+  <div class="eq"><span class="name">Ecuación del error pesimista de una hoja (C4.5)</span>\[ E_{\text{pes}} = E + \text{AddErrs}(N, E),\qquad \text{AddErrs}(N, 0) = N\,(1 - cf^{1/N}),\qquad \text{AddErrs}(N, E) \approx N\cdot\frac{p + \frac{z^2}{2N} + z\sqrt{\frac{p(1-p)}{N} + \frac{z^2}{4N^2}}}{1 + \frac{z^2}{N}} - E \;\text{ con } p = \tfrac{E + 0{,}5}{N} \]</div>
+  <p>\(z\) es el cuantil normal que corresponde a \(cf\), con la tabla del propio C4.5: 0,69 para el valor por defecto 0,25; 1,28 para 0,10; 2,33 para 0,01. Un \(cf\) más chico da un \(z\) más grande, infla más el error y poda más. Lo importante está en la primera fórmula: una hoja <b>pura</b> (\(E = 0\)) también paga. Una hoja de una sola empresa sin errores recibe \(1 \cdot (1 - 0{,}25) = 0{,}75\) errores pesimistas; una de tres, \(3\,(1 - 0{,}25^{1/3}) = 1{,}11\). Ese es el mecanismo que permite podar hojas que solo memorizaron. Después, para cada nodo interno se suman los errores pesimistas de sus hojas y se comparan con los del nodo convertido en hoja; si como hoja no es peor (con una tolerancia de 0,1 error), se poda. Se hace de abajo hacia arriba.</p>
+  <p>Abajo, un nodo real del árbol sin podar sobre las 146 empresas: "deuda sobre activos ≤ 0,374", con 4 empresas (3 pagan, 1 impago) partidas en una hoja de 1 impago y una de 3 que pagan. Cambia el factor de confianza arriba y mira cuándo cambia la decisión; después edita los números.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label>Nodo como hoja: N y errores</label><div style="display:flex;gap:6px"><input type="number" id="c5-pN" value="4" min="1" max="9999" style="width:70px"><input type="number" id="c5-pE" value="1" min="0" max="9999" style="width:70px"></div></div>
+  <div class="ctrl"><label>Hoja 1: N y errores</label><div style="display:flex;gap:6px"><input type="number" id="c5-h1N" value="1" min="0" style="width:70px"><input type="number" id="c5-h1E" value="0" min="0" style="width:70px"></div></div>
+  <div class="ctrl"><label>Hoja 2: N y errores</label><div style="display:flex;gap:6px"><input type="number" id="c5-h2N" value="3" min="0" style="width:70px"><input type="number" id="c5-h2E" value="0" min="0" style="width:70px"></div></div>
+  <div class="ctrl"><label>Hoja 3 (opcional): N y errores</label><div style="display:flex;gap:6px"><input type="number" id="c5-h3N" value="0" min="0" style="width:70px"><input type="number" id="c5-h3E" value="0" min="0" style="width:70px"></div></div></div>
+  <div class="flow" id="c5-poda"></div>
+  <p id="c5-poda-nota"></p>
+  <p><b>Lo que da sobre las 146 empresas.</b> Con la versión 0.3.0 el árbol por defecto (mínimo 1 por hoja, \(cf = 0{,}25\)) tiene 6 hojas y acierta 82,9% en entrenamiento y 76,7% en prueba; con \(cf = 0{,}01\) baja a 5 hojas (82,2% y 78,1%); con mínimo 5 por hoja, 5 hojas (81,5% y 78,1%); con mínimo 10, 4 hojas (80,8% y 74,0%). En la versión anterior del paquete la hoja pura no pagaba nada y el mismo árbol quedaba con 32 hojas y 100% en entrenamiento; la diferencia entre las dos versiones es exactamente la primera fórmula de arriba.</p>
+  <p><b>Una propiedad de esta poda que conviene tener presente.</b> Mira el error, no el orden. En un problema desbalanceado (el caso de churn, con 20% de fuga) muchas hojas predicen la clase mayoritaria y solo afinan la probabilidad; para el error de clasificación no aportan nada, y la poda de C4.5 las quita. Por eso en la tabla del paso 0 el árbol sin poda con mínimo 50 por hoja ordena mejor a los clientes (AUC 0,767) que el podado (0,716), aunque acierte menos. Si el uso es un ranking de riesgo, <code>pruning=False</code> con un mínimo por hoja razonable; si el uso son reglas y decisiones, la poda por defecto.</p>
+</section>
+<section class="panel" id="c5-s4">
+  <h2>Boosting incorporado, reglas, y cómo se usa (sobre las 219 empresas)</h2>
+  <p>C5.0 trae el boosting adentro: <code>trials = 10</code> entrena diez árboles en serie con el mismo esquema de AdaBoost de la pestaña 06. Cada árbol se entrena con pesos por empresa, se calcula su error ponderado \(\varepsilon\), su peso en la votación es \(\alpha = \tfrac{1}{2}\ln\frac{1 - \varepsilon}{\varepsilon}\), las empresas mal clasificadas se multiplican por \(e^{\alpha}\), se renormaliza y se sigue. Se detiene antes si un árbol es perfecto (no hay nada que corregir) o si es peor que una moneda.</p>
+  <p>Sobre las 146 empresas, con los valores por defecto (mínimo 1 por hoja, poda pesimista), el primer árbol acierta 82,9% en entrenamiento, así que le quedan errores que corregir y el boosting tiene trabajo:</p>
+  <div class="block stage"><div class="t">c50py 0.3.0, valores por defecto, acierto en entrenamiento y prueba</div><div class="mwrap"><table class="cmp">
+    <tr><th>trials</th><th>árboles entrenados</th><th>entrenamiento</th><th>prueba (73)</th></tr>
+    <tr><td>1</td><td>1</td><td>82,9%</td><td>76,7%</td></tr>
+    <tr><td>3</td><td>3</td><td>84,2%</td><td>78,1%</td></tr>
+    <tr><td>5</td><td>5</td><td>81,5%</td><td>79,5%</td></tr>
+    <tr class="hi"><td>10</td><td>10</td><td>100%</td><td>82,2%</td></tr>
+    <tr><td>25</td><td>25</td><td>100%</td><td>82,2%</td></tr>
+  </table></div><p style="font-size:.88rem;color:var(--muted)">Los alfas de las primeras rondas: 0,79; 0,44; 0,42; 0,57; 0,30. Con diez rondas el ensamble llega al 82,2% en prueba, lo mismo que el mejor árbol CART de la pestaña 03, y el entrenamiento ya está en 100%: de ahí en adelante no hay nada que corregir y agregar rondas no cambia nada. El número de rondas sigue siendo una perilla que conviene elegir con datos de validación.</p></div>
+  <p>El otro rasgo distintivo es la salida en reglas. <code>export_rules()</code> escribe cada hoja como una condición y una conclusión, y <code>predict_rule(x)</code> devuelve, para una empresa, exactamente la regla que se le aplicó. Con el árbol por defecto sobre las 146 empresas:</p>
+  <div class="block stage"><div class="t">clf.export_rules(feature_names=RATIOS)</div><pre style="margin:0;font-size:.82rem;line-height:1.4;white-space:pre-wrap">ventas_deuda ≤ 1,278 AND razon_corriente ≤ 1,866  ⇒  impago   (23 empresas, todas en impago)
+ventas_deuda ≤ 1,278 AND razon_corriente > 1,866 AND deuda_activos ≤ 0,374  ⇒  impago   (1 empresa)
+ventas_deuda ≤ 1,278 AND razon_corriente > 1,866 AND deuda_activos > 0,374  ⇒  paga   (3 empresas)
+ventas_deuda > 1,278 AND deuda_activos ≤ 0,586  ⇒  paga   (76: 12 impago, 64 pagan)
+ventas_deuda > 1,278 AND deuda_activos > 0,586 AND roa ≤ 0,088  ⇒  paga   (32: 12 impago, 20 pagan)
+ventas_deuda > 1,278 AND deuda_activos > 0,586 AND roa > 0,088  ⇒  impago   (11: 10 impago, 1 paga)</pre></div>
+  <p>Fíjate en que la raíz y el primer nivel son los mismos del árbol CART de la pestaña 03 (ventas sobre deuda 1,278, después razón corriente 1,866 y deuda sobre activos 0,586): con estos datos, gain ratio y Gini coinciden en las dos primeras preguntas, y difieren en qué hacen después con los grupos que quedan. En la versión anterior del paquete la raíz era otra ("deuda sobre activos ≤ 1,063", once empresas con más deuda que activos): la regla de C4.5 de exigir al menos la ganancia promedio antes de mirar el gain ratio es lo que descartó ese corte, que tenía una partición muy desigual y por eso un gain ratio inflado.</p>
+  <p><b>Cómo se usa.</b> Tres líneas:</p>
+  <div class="block stage"><div class="t">Python</div><pre style="margin:0;font-size:.85rem;line-height:1.45">pip install c50py
+
+from c50py import C5Classifier
+clf = C5Classifier(trials=1, cf=0.25, min_samples_leaf=1,       # los valores por defecto
+                   infer_categorical=True)                       # o categorical_features=["region", "plan"]
+clf.fit(X, y)                       # X puede ser un DataFrame: las columnas dan los nombres
+clf.print_tree(); clf.export_rules(); clf.predict_rule(X_nueva)</pre></div>
+  <p>Hay también un <code>C5Regressor</code> con la misma interfaz para respuestas numéricas (varianza como impureza, como en la hoja de regresión de la pestaña 03). Y una lectura final para cerrar el recorrido: C5.0 y CART son dos respuestas a las mismas preguntas (cómo elegir el corte, qué hacer con categorías y huecos, cuándo parar). Ninguna es "la correcta"; conocer las dos es lo que permite leer con criterio lo que entrega cualquier librería.</p>
+</section>
+<div class="nav"><button type="button" id="c5-prev">Anterior</button><button type="button" id="c5-next">Siguiente</button></div>
+</div>
+</div>

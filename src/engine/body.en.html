@@ -1,0 +1,555 @@
+<div class="wrap">
+<nav class="tabs" id="tabs" aria-label="Topics">
+  <button type="button" data-m="ent"><span>01 · 1948</span>Entropy</button>
+  <button type="button" data-m="id3"><span>02 · 1986</span>ID3 tree</button>
+  <button type="button" data-m="cart"><span>03 · 1984</span>CART and Gini</button>
+  <button type="button" data-m="poda"><span>04</span>Overfitting and pruning</button>
+  <button type="button" data-m="bag"><span>05 · 1996 to 2001</span>Bagging and random forest</button>
+  <button type="button" data-m="ada"><span>06 · 1996</span>AdaBoost</button>
+  <button type="button" data-m="gb"><span>07 · 2001</span>Gradient boosting</button>
+  <button type="button" data-m="imp"><span>08</span>Variable importance</button>
+  <button type="button" data-m="c5"><span>Bonus track</span>C5.0</button>
+</nav>
+
+<!-- ===================== 01 ENTROPIA ===================== -->
+<div class="modelo" id="m-ent">
+<div class="controls">
+  <div class="ctrl" data-pasos="0"><label for="ent-p">Probability p of the event: <b id="ent-p-v">0.50</b></label><input type="range" id="ent-p" min="1" max="99" value="50" style="width:200px"></div>
+  <div class="ctrl" data-pasos="2"><label for="ent-attr">Attribute</label><select id="ent-attr"><option value="tamano">size</option><option value="deuda" selected>debt</option><option value="garantia">collateral</option><option value="historial">history</option></select></div>
+  <div class="ctrl" data-pasos="4"><label>Shape of the relationship</label><div class="seg" id="ent-forma"><button type="button" data-f="lineal" aria-pressed="false">Line</button><button type="button" data-f="u" aria-pressed="true">U</button><button type="button" data-f="azar" aria-pressed="false">Random</button></div></div>
+  <div class="ctrl" data-pasos="4"><label for="ent-n">Simulated firms: <b id="ent-n-v">60</b></label><input type="range" id="ent-n" min="20" max="400" step="20" value="60" style="width:160px"></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="ent-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="ent-rail"></nav>
+
+<section class="panel" id="ent-s0">
+  <h2>The information of an event: how much it surprises us</h2>
+  <p>Before talking about trees we need to answer a question that sounds philosophical and turns out to be very practical: <b>how do you measure how much we know?</b> Think of two pieces of news. "The sun rose this morning" tells you nothing: you already knew. "A AAA-rated company defaulted" tells you a great deal: it was almost impossible. The difference between the two lies in the probability you assigned to the event before you found out. The less likely it was, the more it tells you that it happened.</p>
+  <p>Claude Shannon (1948) put a number on that intuition. He defined the information of an event as the logarithm of one divided by its probability, which is the same as minus the logarithm of the probability:</p>
+  <div class="eq"><span class="name">Equation for the information of an event</span>\[ I(\text{event}) = \log_2 \frac{1}{p} = -\log_2(p) \]</div>
+  <p>Here \(p\) is the probability of the event before knowing whether it happened, and the result is measured in <b>bits</b>. With the base-2 logarithm, a fair coin (\(p = 0.5\)) carries exactly 1 bit; a die (\(p = 1/6\)), 2.58 bits; a certain event (\(p = 1\)), 0 bits. You can think of a bit as "one yes-or-no question": to find out how a coin landed you need one question; to find out which number came up on a die, between two and three.</p>
+  <p><b>Why the logarithm and not something else.</b> Because we want the information of two independent events to add up. If I toss two coins, knowing the outcome of both should carry twice the information of knowing one. The probability of the two together is \(p \cdot q\), and the logarithm turns that product into a sum: \(-\log_2(p \cdot q) = -\log_2(p) - \log_2(q)\). Any other function of \(p\) would break that property. It is not a matter of taste; it is the only one that works.</p>
+  <div class="flow" id="ent-info"></div>
+  <p>Move the probability slider above and look at the curve. Notice that it is not a straight line: going from 0.5 down to 0.25 costs one more bit, and going from 0.02 down to 0.01 also costs one more bit, even though the difference in probability is much smaller. What matters is by how much the rarity is multiplied, not by how much it is subtracted.</p>
+  <p class="note">Everything here is in bits (base-2 logarithm). If the natural logarithm is used, the unit is called a nat. It is the same quantity in another unit, like kilometers and miles; the conversion factor is 0.693.</p>
+</section>
+
+<section class="panel" id="ent-s1">
+  <h2>Entropy: the average surprise of a variable</h2>
+  <p>The above measures the information of <em>one</em> event. But a variable, such as "does the firm pay or not?", has several possible values, each with its own probability. How much information does learning its value give us, on average? It is computed by taking the information of each value and averaging it with the probabilities of each one. Shannon called that average <b>entropy</b>:</p>
+  <div class="eq"><span class="name">Entropy equation</span>\[ H(X) = -\sum_{v} p(v)\,\log_2 p(v) \]</div>
+  <p>The sum runs over the possible values \(v\) of the variable \(X\), and \(p(v)\) is the fraction of times each one comes up. In words: how many yes-or-no questions are needed, on average, to guess the value. Three cases to fix the idea. A fair coin: both values have probability 0.5, each carries 1 bit, the average is 1 bit. A loaded coin that comes up heads 90% of the time: we almost always know what is going to happen, and the entropy drops to 0.47 bits. A constant (always the same outcome): there is nothing to guess, entropy zero.</p>
+  <p>Let us see it with data. The 14 firms that applied for credit have four attributes (size, debt level, whether they provided collateral, payment history) and one outcome: whether they paid or not. For each column we count how many times each value appears, turn it into a probability and apply the formula.</p>
+  <div class="flow" id="ent-h"></div>
+  <p id="ent-h-nota"></p>
+  <p><b>What this is for.</b> The entropy of "pays" is the uncertainty we have <em>before</em> asking anything about the firm. It is the starting point: every piece of data we request should lower that number. In the next step we measure how much each attribute lowers it, and that is exactly what a decision tree uses to choose what to ask first.</p>
+</section>
+
+<section class="panel" id="ent-s2">
+  <h2>Conditional entropy and gain: how much I learn by asking</h2>
+  <p>Suppose an analyst already knows a firm's debt level. How much uncertainty is left about whether it will pay? To answer, we do the following: split the firms into groups by debt (low, medium, high), compute the entropy of "pays" <em>within each group</em>, and average those entropies giving more weight to the larger groups. The result is called <b>conditional entropy</b>, and it is written \(H(\text{pays} \mid \text{debt})\), read as "entropy of pays given debt".</p>
+  <div class="eq"><span class="name">Conditional entropy equation</span>\[ H(Y \mid X) = \sum_{v} P(X = v)\; H(Y \text{ within the group where } X = v) \]</div>
+  <p>\(Y\) is the variable we want to predict (pays), \(X\) the attribute we are considering asking about (debt), \(P(X = v)\) the fraction of firms that have value \(v\) of that attribute, and the term next to it is the entropy of pays computed only with those firms. If a group is "pure" (all pay, or none do), its entropy is zero and it contributes no uncertainty.</p>
+  <p>The <b>information gain</b> is what disappeared: the entropy we had before minus what is left after asking. It is also called <b>mutual information</b>, because, although it may not look like it, computing it the other way around gives the same result (how much pays reduces the uncertainty about debt):</p>
+  <div class="eq"><span class="name">Information gain equation</span>\[ I(Y; X) = H(Y) - H(Y \mid X) \]</div>
+  <p>Choose an attribute above and watch how the table splits. Each card is a group; below, the full calculation.</p>
+  <div class="flow" id="ent-cond"></div>
+  <p id="ent-cond-nota"></p>
+  <p><b>How to read it.</b> An attribute with high gain is a good question: after learning it, the firms end up fairly well separated between those that pay and those that do not. An attribute with gain close to zero is a useless question: the groups it forms are as mixed as the whole table. That number, computed for each attribute, is the decision a tree makes at each node.</p>
+</section>
+
+<section class="panel" id="ent-s3">
+  <h2>The four gains, and a trap worth knowing</h2>
+  <p>Running the same calculation for the four attributes gives a ranking. Debt wins by a wide margin; size contributes almost nothing: knowing whether the firm is small, medium or large says almost nothing about whether it pays, at least in this table. That ranking is, literally, the first question of the tree in the next tab.</p>
+  <div class="flow" id="ent-gan"></div>
+  <p><b>The identifier trap.</b> There is a situation where gain is misleading. Imagine we add a "customer number" column to the table, different for each firm. Splitting by that column, each group has a single firm, so every group is pure and the conditional entropy is exactly zero: the gain is the maximum possible. And yet that "question" is useless: a new firm brings a number we have never seen, and the tree would not know what to do with it. The problem is general: an attribute with many distinct values chops the table into little pieces and gains "for free", without that meaning it has any predictive power.</p>
+  <p>The classic correction (C4.5, Quinlan 1993) is to divide the gain by the entropy of the attribute itself, which is high when the attribute has many values. That is called the <b>gain ratio</b>:</p>
+  <div class="eq"><span class="name">Gain ratio equation</span>\[ \text{gain ratio}(X) = \frac{I(Y; X)}{H(X)} \]</div>
+  <p>In the table above the gain ratio penalizes the identifier (from 0.985 to 0.259), but in a 14-row table it still beats debt (0.185). That is why C4.5 adds another rule (only consider attributes whose gain exceeds the average) and why, above all, common sense rules: an attribute that identifies rows cannot generalize, and no number will fully fix that.</p>
+</section>
+
+<section class="panel" id="ent-s4">
+  <h2>The parallel with the statistics you already know: variance and correlation</h2>
+  <p>If you come from statistics, entropy may sound like something you already know: <b>variance</b>. Both measure dispersion, and both are zero when the variable is constant. But there is an important difference. Variance measures how far a <em>number</em> strays from its mean, and so it needs the variable to be numeric and to have a scale: if we go from measuring in pesos to measuring in thousands of pesos, the variance changes. Entropy only looks at the <em>probabilities</em> of each value: it makes no difference whether the values are 1, 2, 3 or 10, 20, 30, or "small, medium, large". That is why entropy works for variables without numbers, where variance makes no sense. And that is why a classification tree uses entropy (or Gini) exactly where a regression tree uses variance: as a measure of "how mixed the group is" that a good split reduces.</p>
+  <p>The same parallel exists between <b>correlation</b> and <b>mutual information</b>. Pearson correlation measures how closely the relationship between two variables resembles a straight line, and ranges from \(-1\) to \(1\). Mutual information measures how much one variable reduces the uncertainty of the other, whatever the shape of the relationship, and ranges from 0 upward, in bits. With the variables grouped into classes it is computed like this:</p>
+  <div class="eq"><span class="name">Mutual information equation with classes</span>\[ I(X; Y) = \sum_{x,\,y} p(x, y)\,\log_2 \frac{p(x, y)}{p(x)\,p(y)} \]</div>
+  <p>\(p(x, y)\) is the fraction of observations that fall in the cell (class of \(X\), class of \(Y\)), and \(p(x)\), \(p(y)\) are the fractions of each class separately. If \(X\) and \(Y\) were independent, the joint fraction would equal the product of the separate fractions in every cell, the logarithm would be zero and so would the sum.</p>
+  <p><b>Why it matters.</b> A correlation close to zero can mean two very different things: that there is no relationship, or that the relationship exists but is not a straight line. Choose the shape above (line, U or random) and compare the two measures. With the U, the correlation stays near zero because the rising half cancels the falling half, but the mutual information is clearly higher than that of the random case: knowing \(x\) does say a lot about \(y\). A tree, which works with information gain or Gini, finds the U with two splits; a linear regression ignores it completely.</p>
+  <div class="flow" id="ent-var"></div>
+  <p id="ent-var-nota"></p>
+  <div class="flow" id="ent-dist"></div>
+</section>
+
+<section class="panel" id="ent-s5">
+  <h2>Cross-entropy: the loss that trains classifiers</h2>
+  <p>So far we have measured the uncertainty of reality. Now a <em>model</em> enters that believes something about that reality. Suppose reality is distributed as \(p\) (for example, 8 of 14 firms pay, \(p(\text{yes}) = 0.571\)) and a model believes the probability of paying is \(q\). Each time something happens, the model is surprised according to what <em>it</em> believed: it pays \(-\log_2 q\) bits if the firm paid and \(-\log_2(1 - q)\) if it did not. The average surprise the model suffers is the <b>cross-entropy</b>: the same formula as entropy, but the logarithm is taken over the belief \(q\) and the average over reality \(p\).</p>
+  <div class="eq"><span class="name">Equations for cross-entropy and the Kullback-Leibler (KL) divergence</span>\[ H(p, q) = -\sum_{v} p(v)\,\log_2 q(v) \qquad\qquad \mathrm{KL}(p \,\|\, q) = H(p, q) - H(p) \]</div>
+  <p>Cross-entropy is never less than the entropy of reality, \(H(p)\): a model cannot be less surprised than reality is uncertain. The difference between the two is the <b>Kullback-Leibler divergence</b> (Kullback and Leibler, 1951), which measures the <em>extra</em> surprise the model pays for believing \(q\) instead of \(p\). It is zero only when the model gets the distribution right, and it grows very fast when the model is confident and wrong: if it says 0.95 and the opposite happens, it pays \(-\log_2(0.05) = 4.3\) bits at once.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label for="ent-q">Model belief q(pays = yes): <b id="ent-q-v">0.60</b></label><input type="range" id="ent-q" min="1" max="99" value="60" style="width:220px"></div></div>
+  <div class="flow" id="ent-cruz"></div>
+  <p id="ent-cruz-nota"></p>
+  <p><b>What it is for.</b> This is the loss minimized by logistic regression and by every classification neural network. Training a classifier is, literally, moving its parameters so that the cross-entropy goes down, that is, so that \(q\) gets closer to \(p\). And since \(H(p)\) does not depend on the model, the only thing training can reduce is the KL divergence.</p>
+  <p><b>For those coming from econometrics.</b> Minimizing cross-entropy is exactly maximizing the likelihood. The log-likelihood of a logistic regression is \(\sum_i [\,y_i \ln q_i + (1 - y_i)\ln(1 - q_i)\,]\); flipping its sign and dividing by \(n\) gives the average binary cross-entropy (in nats; in bits only the unit changes). They are the same objective function with two names: statistics reads it as "how likely was the sample under the model" and information theory as "how much surprise the model accumulates". What the second point of view adds is the floor \(H(p)\): the part of the loss that no model can lower because it is genuine uncertainty.</p>
+</section>
+<div class="nav"><button type="button" id="ent-prev">Previous</button><button type="button" id="ent-next">Next</button></div>
+</div>
+
+<!-- ===================== 02 ID3 ===================== -->
+<div class="modelo" id="m-id3">
+<div class="controls">
+  <div class="ctrl" data-pasos="3"><label>New firm</label><div style="display:flex;gap:6px;flex-wrap:wrap">
+    <select id="id3-tam"><option>small</option><option>medium</option><option selected>large</option></select>
+    <select id="id3-deu"><option>low</option><option selected>medium</option><option>high</option></select>
+    <select id="id3-gar"><option>yes</option><option selected>no</option></select>
+    <select id="id3-his"><option>good</option><option selected>bad</option></select></div></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="id3-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="id3-rail"></nav>
+<section class="panel" id="id3-s0">
+  <h2>What a decision tree is, and what the algorithm decides</h2>
+  <p>A decision tree is a list of chained questions that ends in an answer. An experienced credit analyst does something similar without noticing: "does it have a lot of debt? If not, approved. If so, did it post collateral? If yes, approved; if not, rejected". Each question splits the clients into groups, and each final group receives a decision. What the algorithm does is not invent that scheme, but <b>choose the questions</b>: which one to ask first, which one next on each branch, and when to stop.</p>
+  <p>ID3 (Quinlan, 1986) was the first algorithm to do this systematically, and its rule is the one from the previous tab: at each node, ask about the attribute with the <b>highest information gain</b>. The full recipe fits in three lines. First, if all the firms in the group have the same answer, there is nothing to ask: the group is a leaf. Second, if not, compute the gain of every attribute not yet used and ask about the best one. Third, split the group by the answer and repeat on each branch.</p>
+  <p>One word for that recipe is <b>greedy</b>: at each step it picks the best question <em>now</em>, without checking whether another combination of questions would give a smaller or more accurate tree in the end. It is a huge simplification, and it works surprisingly well in practice.</p>
+  <div class="block stage"><div class="t">The 14 firms</div><div id="id3-tabla" class="mwrap"></div></div>
+  <p><b>What it is good for.</b> It is the most explainable model there is. Every prediction can be read as a sentence ("it was rejected because it has high debt and posted no collateral"), and a manager can discuss each question, change it or forbid it. In credit, where there is an obligation to explain a rejection, that transparency is worth as much as accuracy.</p>
+</section>
+<section class="panel" id="id3-s1">
+  <h2>Step 1: the root</h2>
+  <p>With the 14 firms, the gain of each attribute is computed. It is exactly the table from the previous tab: debt wins with 0.292 bits, collateral follows with 0.161, history contributes little and size almost nothing. So the first question in the tree, the <b>root</b>, is "what is the debt level?".</p>
+  <div class="flow" id="id3-raiz"></div>
+  <p>It is worth pausing on what the algorithm did <em>not</em> do: it did not try every possible tree. It only looked at four numbers and picked the largest. Everything that follows is repeating that same decision, each time with fewer firms and fewer attributes.</p>
+</section>
+<section class="panel" id="id3-s2">
+  <h2>Step 2: split, and repeat on each branch</h2>
+  <p>Debt has three values, so the table is split into three groups. In each group the same question is asked again: is there uncertainty left? If all the firms in the group pay (or none do), it is a leaf and we are done. If not, the gain of the remaining attributes is computed, now only with the firms in that group, and the best one is asked.</p>
+  <div class="flow" id="id3-ramas"></div>
+  <p>Notice that a different attribute wins on each branch. Among high-debt firms, what separates the ones that pay is collateral; among medium-debt firms, history. The tree asks different things depending on the path, and that is what lets it capture relationships a linear regression does not see: the effect of collateral depends on how much debt there is. In statistics that is called an interaction, and here it appears without anyone asking for it.</p>
+</section>
+<section class="panel" id="id3-s3">
+  <h2>Step 3: the full tree, and a new firm</h2>
+  <p>Three questions, five leaves. To predict a new firm you start at the root, answer each question with the firm's data and follow the corresponding branch until you reach a leaf. Change the new firm above and follow its highlighted path. Note that size is never asked: the tree discarded it on its own, because on no branch was it the attribute with the highest gain.</p>
+  <div class="flow"><div class="block stage" style="flex:1 1 420px"><div class="t">The tree</div><div id="id3-arbol"></div></div><div class="block stage" style="flex:1 1 260px"><div class="t">The new firm</div><div id="id3-nueva"></div></div></div>
+  <p><b>A warning that is developed in tab 04.</b> This tree gets all 14 firms it was built with right. That says nothing about new firms: with 14 rows and 4 attributes, almost any table can be "explained" completely, even one full of noise. The only grade that counts is the one obtained with data the tree did not see.</p>
+  <p><b>What came next in the story.</b> ID3 only handles attributes with category values (it does not know what to do with "sales over debt = 1.43") and has no brake: it keeps splitting tiny groups as long as any attribute is left. C4.5 (1993) added the gain ratio, the handling of numeric variables and pruning. CART (1984, the next tab) took another route: Gini index, splits always in two, and the ability to predict numbers as well as categories. All the trees used today are variants of CART.</p>
+</section>
+<div class="nav"><button type="button" id="id3-prev">Previous</button><button type="button" id="id3-next">Next</button></div>
+</div>
+
+<!-- ===================== 03 CART ===================== -->
+<div class="modelo" id="m-cart">
+<div class="controls">
+  <div class="ctrl" data-pasos="2"><label for="cart-ratio">Ratio</label><select id="cart-ratio"></select></div>
+  <div class="ctrl" data-pasos="2"><label for="cart-u">Threshold: <b id="cart-u-v"></b></label><input type="range" id="cart-u" min="0" max="1000" value="500" style="width:220px"></div>
+  <div class="ctrl" data-pasos="2"><label>&nbsp;</label><button type="button" id="cart-best">Go to the best split</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="cart-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="cart-rail"></nav>
+<section class="panel" id="cart-s0">
+  <h2>The data changes: 219 firms described with numbers</h2>
+  <p>Up to here we worked with 14 firms described with words (debt low, medium or high; collateral yes or no). From this tab to the end we work with another table: 219 Chilean firms described by five financial ratios, each a number with decimals, and a column that says whether the firm defaulted (1) or paid (0). 39% defaulted. It is worth looking at the table before going on, because the change in data type is what motivates everything CART does differently from ID3.</p>
+  <p>The five ratios are those of any credit analysis. <b>Debt over assets</b>: what fraction of what the firm owns is financed with debt (leverage). <b>Current ratio</b>: current assets over current liabilities, how many times it can cover what it has to pay within the year with what it can collect or sell within the year (liquidity). <b>Sales over debt</b>: how many times its sales cover its total debt (ability to service the debt). <b>Logarithm of assets</b>: the size of the firm, in logarithm so that a firm one hundred times larger does not end up one hundred times farther away. <b>Return on assets (roa)</b>: net income over total assets.</p>
+  <p>The <b>set</b> column is also new. We randomly separated 146 firms for <b>training</b> (with them the splits are chosen) and 73 for <b>testing</b> (with them we measure whether what was learned works on new firms). From now on the rule is the usual one: everything the model "learns" is learned only with the 146; the 73 are touched a single time, at the end, to give the grade. This partition is the same in all the tabs that follow.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label>Show</label><div class="seg" id="cart-datos-conj"><button type="button" data-c="all" aria-pressed="true">All 219</button><button type="button" data-c="train" aria-pressed="false">Training (146)</button><button type="button" data-c="test" aria-pressed="false">Test (73)</button></div></div></div>
+  <div class="flow" id="cart-datos"></div>
+  <p><b>How to read the table.</b> Each row is a firm; the ratio columns are the numbers the tree will ask about, and the last column is what we want to predict. Notice that there are no repeated values forming natural groups, as happened with "high debt": each firm has its own sales over debt. That is why the tree's question can no longer be "what is its value?" but "is it less than or equal to a threshold?", and choosing that threshold is the job of step 2.</p>
+</section>
+<section class="panel" id="cart-s1">
+  <h2>CART: the tree used by all current software</h2>
+  <p>CART (Breiman, Friedman, Olshen and Stone, 1984) is the tree behind scikit-learn, random forests and XGBoost. It differs from ID3 in three things. First, it measures the impurity of a group with the <b>Gini index</b> instead of entropy. Second, it always splits in <b>two</b>: for a numeric variable it searches for the best <b>threshold</b> ("is sales over debt less than or equal to 1.28?") by trying every possible split. Third, it also works for predicting <b>numbers</b>, not just categories.</p>
+  <p><b>Before going on, a change worth saying out loud.</b> Up to here the tree's questions were about categories ("is debt low, medium or high?") and the answer was a category (pays yes or no). In the first tab the parallel appeared for when the answer is a number: the uncertainty of a group is measured with its variance instead of entropy. What was left unsaid is the rest of the recipe, which is the same: the prediction of a group is its average, and the gain of a question is how much the variance drops when splitting (the total variance minus the weighted average of the groups' variances), just as information gain was how much entropy dropped. What changes now is the other side: the variables we ask with become <b>numbers</b> (financial ratios with decimals), and with a number you cannot ask "what is its value?", because each firm has a different one. The natural question has the form "is it less than or equal to a threshold?", and the algorithm's new job is <b>choosing that threshold</b>. Everything else (measuring the impurity of each side, averaging it by the size of each side, keeping the question that reduces it the most) is identical.</p>
+  <div class="block"><div class="t">The four cases, and what changes in each one</div>
+  <div class="mwrap"><table class="tabla">
+    <tr><th></th><th>Categorical response Y (pays yes or no)</th><th>Numeric response Y (profitability)</th></tr>
+    <tr><th>Categorical variable X (debt low, medium, high)</th><td>This is the ID3 case: one branch per value, impurity measured with entropy or Gini, prediction by majority of the group.</td><td>One branch per value, impurity measured with the group's variance, prediction equal to the group's average. It is the entropy and variance parallel from the first tab.</td></tr>
+    <tr><th>Numeric variable X (sales over debt = 1.43)</th><td>The case in this tab: a threshold is searched for, the split is into "less than or equal" and "greater", and Gini is measured on each side.</td><td>CART regression tree: the same threshold, with the variance on each side as impurity and the average of each side as prediction. It is the piece used by the gradient boosting of tab 07.</td></tr>
+  </table></div>
+  <p style="margin-top:8px">Two practical details. CART always splits in two, so when it gets a categorical variable it does not open one branch per value like ID3, but searches for the best way to separate the values into two groups (for example, "high debt" against "low or medium"); in many libraries that is handled by turning each category into a column of zeros and ones, and a column of zeros and ones is just another number you can put a threshold of 0.5 on. And the impurity used depends only on the response, not on the variables we ask with: Gini or entropy if Y is a category, variance if Y is a number.</p></div>
+  <p>The Gini index answers a concrete question: if I draw two firms at random from a group, what is the probability that they are of different classes? If the group is pure, none: Gini is 0. If the group is half and half, half of the time: Gini is 0.5. With \(p\) the fraction of one class in the group:</p>
+  <div class="eq"><span class="name">Gini index equation</span>\[ \text{Gini} = 1 - p^2 - (1 - p)^2 = 2\,p\,(1 - p) \]</div>
+  <p>The first form reads "one minus the probability that the two are of the same class"; the second is the same thing simplified. If you compare it with entropy in the chart below, you will see they have almost the same shape: both are zero at the extremes and maximal in the middle. Gini is used more than entropy for a practical reason: it needs no logarithms, and a tree computes this quantity millions of times.</p>
+  <div class="flow" id="cart-gini"></div>
+</section>
+<section class="panel" id="cart-s2">
+  <h2>Finding the best split of a ratio: move the threshold</h2>
+  <p>With a numeric variable there are no "values" that separate groups; there are infinitely many possible thresholds. CART solves that by trying them all. The candidates are the midpoints between consecutive values in the training set (so the split lands between two firms and not on one). For each candidate \(u\) the training set is split into "less than or equal to \(u\)" and "greater than \(u\)", the Gini of each side is measured and the two are averaged, weighting by how many firms ended up on each side:</p>
+  <div class="eq"><span class="name">Weighted Gini equation for a split</span>\[ G(u) = \frac{n_{\text{left}}\,\text{Gini}_{\text{left}} + n_{\text{right}}\,\text{Gini}_{\text{right}}}{n} \]</div>
+  <p>\(n\) is the total number of firms in the group, \(n_{\text{left}}\) and \(n_{\text{right}}\) how many end up on each side of the threshold, and the Ginis are those of each side. The threshold with the lowest \(G(u)\) is the best split of the ratio. Move the slider and watch how the impurity changes; the button jumps to the optimum. In the strip of dots, each firm is a dot (copper if it defaulted, blue if not), and the line is the threshold.</p>
+  <div class="flow" id="cart-corte"></div>
+  <p id="cart-corte-nota"></p>
+</section>
+<section class="panel" id="cart-s3">
+  <h2>The best split of each ratio, and the root</h2>
+  <p>The search is repeated for the five ratios and the best split of each one is compared. The one that reduces impurity the most is the root. Sales over debt wins with threshold 1.278: firms that sell less than 1.3 times their debt default much more often than the rest.</p>
+  <div class="flow" id="cart-mejores"></div>
+  <p>Compare with ID3: there the root was chosen by entropy over category values; here, by Gini over a numeric threshold. The mechanism is the same (split and measure how much the groups get sorted); what changed is the yardstick and the shape of the split.</p>
+</section>
+<section class="panel" id="cart-s4">
+  <h2>The depth-2 tree, and its grade on new data</h2>
+  <p>After the root, on each side the best split is searched for again, but only with the firms on that side. On the left (low sales relative to debt) the next split is liquidity; on the right, leverage. With depth 2 the tree has four leaves and fits on a sheet of paper. And now, the grade that counts: how many of the 73 test firms it classifies correctly.</p>
+  <div class="flow" id="cart-arbol"></div>
+  <p><b>How to read the confusion matrix.</b> The rows are reality and the columns are what the tree said. The diagonal is the correct calls. The two cells off the diagonal are errors of a different kind: accusing a firm that was going to pay of being risky (a client is lost) and approving one that did not pay (the capital is lost). A bank does not value the two errors equally, and overall accuracy mixes them; that is why it is better to look at the matrix and not just the percentage.</p>
+  <p><b>What it is good for.</b> A CART tree on ratios is a credit scoring that reads like a rulebook: "if it sells less than 1.3 times its debt and its liquidity is below 1.9, high risk". The algorithm chose the threshold, but the manager can discuss it, move it or demand that a ratio not be used. And the same mechanism works for predicting a number, for example profitability: instead of Gini, the group's variance is used as impurity, and each leaf predicts the average of its firms. That version, the regression tree, is the piece used by the gradient boosting of the last tab.</p>
+</section>
+<div class="nav"><button type="button" id="cart-prev">Previous</button><button type="button" id="cart-next">Next</button></div>
+</div>
+
+<!-- ===================== 04 PODA ===================== -->
+<div class="modelo" id="m-poda">
+<div class="controls">
+  <div class="ctrl" data-pasos="1,2"><label for="poda-d">Depth at which the tree is cut: <b id="poda-d-v">4</b></label><input type="range" id="poda-d" min="0" max="4" value="4" style="width:200px"></div>
+  <div class="ctrl" data-pasos="0"><label for="poda-k">Firms removed: <b id="poda-k-v">5</b></label><input type="range" id="poda-k" min="1" max="20" value="5" style="width:160px"></div>
+  <div class="ctrl" data-pasos="0"><label>&nbsp;</label><button type="button" id="poda-otra">Remove others at random</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="poda-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="poda-rail"></nav>
+<section class="panel" id="poda-s0">
+  <h2>A tree is unstable: remove five firms and the root changes</h2>
+  <p>Before talking about overfitting, we need to look at a flaw in trees that explains almost everything that comes in tabs 05 to 07. A tree is built with greedy decisions: at the root it picks the best split among hundreds of candidates that differ only slightly. If the second best is just barely behind the first, changing a few firms in the training set is enough to flip the order. And since everything hanging from the root depends on it, changing the root changes the whole tree.</p>
+  <p>Check it yourself. Below is the depth 2 tree trained on all 146 firms, and next to it the same tree trained on the 146 minus a few chosen at random (how many, you control above). Press "Remove others at random" several times and watch how often the root changes. The table on the right keeps count.</p>
+  <div class="flow" id="poda-inest"></div>
+  <p id="poda-inest-nota"></p>
+  <p><b>Why it matters.</b> If the model changes this much with such a small change in the data, then part of what the tree "learned" is not a property of the firms but an accident of which 146 we happened to get. That sensitivity is called the model's <b>variance</b>, and it is the problem that ensembles solve. But first, the other problem: what happens when the tree is allowed to grow without limit.</p>
+</section>
+<section class="panel" id="poda-s1">
+  <h2>Overfitting: a tree that memorizes the data is useless for new firms</h2>
+  <p>A tree can keep splitting until every leaf holds a single firm. At that point it gets 100% of the training set right, because every firm has its own path and its own answer. But think about what it learned: to separate two similar firms that had different outcomes, it invented a question that tells them apart, and that question describes <em>those two</em> firms, not firms in general. With 146 firms and five ratios, there is always some question that separates any pair. The big tree learns the noise, and the noise does not repeat in the other 73.</p>
+  <p>That is called <b>overfitting</b>, and it shows up in a single chart: training accuracy against test accuracy, as the tree grows.</p>
+  <div class="flow" id="poda-curva"></div>
+  <p><b>How to read the curve.</b> Training accuracy always rises, up to 100%. Test accuracy rises at first (the tree is learning true things), reaches a maximum around depth 2 or 3, and then drops or stalls (the tree is learning noise). Everything learned after the maximum is memory, not knowledge. It is the same phenomenon as a very high degree polynomial fitted to a few points: it passes exactly through all of them and is useless for any new one.</p>
+  <p>A warning about the scale: with 73 test firms, one percentage point is less than one firm. Differences of one or two points are noise; what matters is the shape of the two curves, not the decimal.</p>
+</section>
+<section class="panel" id="poda-s2">
+  <h2>The depth 4 tree, cut wherever you say</h2>
+  <p>Move the depth above. Cutting at level \(k\) means using as the prediction the majority class of the node the firm lands in after \(k\) questions. The dimmed nodes are the ones pruning removes. Each node shows how many training firms reached it and what fraction of them defaulted. Look at the nodes at the bottom: several have four or five firms. A rule based on five cases is not a rule, it is an anecdote.</p>
+  <div class="block stage" style="max-width:100%"><div class="t">The tree (training n and default fraction at each node)</div><div id="poda-arbol" class="mwrap"></div></div>
+  <div class="kpi" id="poda-kpi"></div>
+</section>
+<section class="panel" id="poda-s3">
+  <h2>How to rein it in: pre-pruning and post-pruning</h2>
+  <p>There are two ways to control the size of a tree. <b>Pre-pruning</b> is not letting it grow: setting a maximum depth, or requiring a minimum number of firms per leaf, or a minimum impurity improvement to accept a split. These are the hyperparameters of any library, and the minimum per leaf has a direct business reading: "I do not want rules based on fewer than 20 customers".</p>
+  <p><b>Post-pruning</b> is the opposite: let the full tree grow and then trim the branches that contribute little. Breiman's version is called cost-complexity pruning. For each internal node, we compute how much training error the branch hanging from it saves, and how many leaves it costs to keep it. The ratio between the two is the "price per leaf" of that branch:</p>
+  <div class="eq"><span class="name">Equation for the effective alpha of a node</span>\[ \alpha_{\text{eff}}(\text{node}) = \frac{R(\text{node as a leaf}) - R(\text{branch})}{\text{leaves in the branch} - 1} \]</div>
+  <p>\(R\) is the training error, measured as the fraction of misclassified firms and weighted by how many pass through that node. A small \(\alpha_{\text{eff}}\) means "many leaves to save little error": that branch is the first candidate to disappear. The branch with the smallest \(\alpha_{\text{eff}}\) is pruned first, everything is recomputed, and so on. That produces a sequence of ever smaller trees, and the stopping point is chosen with data the tree did not see.</p>
+  <div class="flow" id="poda-ccp"></div>
+  <p><b>What to take away.</b> Depth, minimum per leaf and \(\alpha\) are three knobs for the same thing: how much complexity the tree is allowed. Here any tree with 3 to 8 leaves gets between 75% and 82% on the test set, and none with 20 or more leaves beats that. The practical rule is to choose the complexity with data the tree did not see, never with training accuracy. And there is something pruning does not fix: the instability of the first step. A pruned tree is still a tree, and it still changes its root when a few firms change. That is what ensembles take care of.</p>
+</section>
+<div class="nav"><button type="button" id="poda-prev">Previous</button><button type="button" id="poda-next">Next</button></div>
+</div>
+
+<!-- ===================== 05 BAGGING ===================== -->
+<div class="modelo" id="m-bag">
+<div class="controls">
+  <div class="ctrl" data-pasos="2"><label for="bag-emp">Test firm</label><select id="bag-emp"></select></div>
+  <div class="ctrl" data-pasos="2,3"><label>Ensemble</label><div class="seg" id="bag-tipo"><button type="button" data-t="bag" aria-pressed="true">Bagging</button><button type="button" data-t="rf" aria-pressed="false">Random forest</button></div></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="bag-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="bag-rail"></nav>
+<section class="panel" id="bag-s0">
+  <h2>What an ensemble is, and the two ways a model can be wrong</h2>
+  <p>So far we built one tree and improved it by pruning. The three remaining tabs do something else: instead of looking for the best tree, they train <b>many</b> trees and combine their predictions. That combination is called an <b>ensemble</b> (as in an orchestra: many instruments, a single piece of music). If you ask one appraiser to estimate the price of a house, the error depends on their quirks; if you ask twenty and average, the quirks tend to cancel out and the average is usually better than almost any one of them. An ensemble of trees is exactly that: to classify, each tree votes and the majority wins; to predict a number, the predictions are averaged.</p>
+  <p>There are two families, and the difference is in how the trees are made. In <b>bagging</b> and <b>random forest</b> (this tab) the trees are trained in parallel, each on a different version of the data, and all count equally in the vote. In <b>boosting</b> (tabs 06 and 07) the trees are trained in sequence, each focused on what the previous ones got wrong, and they are added with weights. To understand why either of these can beat a single tree, we first need to separate two kinds of error that are often mixed up.</p>
+  <p>Imagine you know the true relationship between a variable \(x\) and an outcome \(y\) (in real life it is never known, but here we simulate it: a U-shaped curve with some noise). You draw a sample of 60 points, fit a model, and repeat the experiment many times with new samples. Each sample gives a different model. Two things can go wrong.</p>
+  <p>The first: all the models, even if they resemble each other, end up far from the true curve because the model is too simple to draw it. A straight line cannot draw a U no matter how much data you give it. That systematic error, which more samples do not fix, is called <b>bias</b>.</p>
+  <p>The second: each model fits its own sample well but the models are very different from each other, because each one clung to the details of its 60 points. A deep tree does that: it passes close to all of its points, and since the points change from sample to sample, the tree changes with them. That sensitivity to the sample is called <b>variance</b>. It is the instability from the previous tab, seen from above.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label>Model</label><div class="seg" id="bag-sv-modelo"><button type="button" data-m="recta" aria-pressed="false">Straight line</button><button type="button" data-m="profundo" aria-pressed="true">Deep tree</button><button type="button" data-m="bagging" aria-pressed="false">Average of 25 deep trees</button></div></div><div class="ctrl"><label>&nbsp;</label><button type="button" id="bag-sv-otra">New sample</button></div><div class="ctrl"><label>&nbsp;</label><button type="button" id="bag-sv-20">Overlay 20 samples</button></div></div>
+  <div class="flow" id="bag-sv"></div>
+  <p id="bag-sv-nota"></p>
+  <p><b>The idea of ensembles, in one sentence.</b> Bias is not fixed by averaging: if all the models are wrong in the same direction, so is the average. But variance is: if each model is wrong in a different direction, averaging many of them cancels the errors out. That is the bet of bagging and random forest: take a model with low bias and high variance (a deep tree), make many that are similar but different, and average them. Boosting, in tabs 06 and 07, attacks the other error: it starts from models with high bias (stumps) and adds them in sequence to bring it down.</p>
+</section>
+<section class="panel" id="bag-s1">
+  <h2>Bootstrap: making many samples out of one</h2>
+  <p>To average many trees you need many samples, and we only have one: the 146 firms. Bagging (Breiman, 1996; the name comes from <em>bootstrap aggregating</em>) solves that with a statistical trick called the <b>bootstrap</b>: draw 146 firms <em>with replacement</em> from the original table. Some firms come out two or three times, others not at all. Each draw gives a table similar to the original but not identical, and a tree trained on each draw gives trees that are similar but not identical. It is exactly the instability from the previous tab, now used to our advantage.</p>
+  <div class="flow" id="bag-boot"></div>
+  <p><b>Why averaging reduces variance, and how far.</b> If the trees were completely independent, averaging \(B\) of them would divide the variance by \(B\). But they are not: they all come from the same 146 firms and tend to find the same splits. The formula that describes this uses the correlation \(\rho\) between any two trees:</p>
+  <div class="eq"><span class="name">Equation for the variance of an average of correlated trees</span>\[ \mathrm{Var}(\text{average}) = \rho\,\sigma^2 + \frac{1 - \rho}{B}\,\sigma^2 \]</div>
+  <p>\(\sigma^2\) is the variance of a single tree and \(B\) is how many are averaged. The second term becomes small with large \(B\), but the first does not depend on \(B\): no matter how many trees you add, \(\rho\,\sigma^2\) remains. It is the part of the error that all the trees share, and the only way to reduce it is to lower \(\rho\), that is, to make the trees less alike. That is what random forest adds.</p>
+</section>
+<section class="panel" id="bag-s2">
+  <h2>The seven trees vote, and random forest adds a second draw</h2>
+  <p>Here there are seven bootstrap samples and seven trees. With <b>bagging</b>, each tree is a depth 2 tree trained on its sample with all five variables available. With <b>random forest</b> (Breiman, 2001) there is one more change: at each split, the tree can only look at two of the five variables, chosen at random at that moment. It sounds like sabotage, but it is what forces the trees to use different variables and to resemble each other less, lowering the \(\rho\) in the formula. Switch between the two above and compare how similar the roots are.</p>
+  <p>To predict a new firm, each tree votes and the majority wins. Pick a test firm above and look at the seven votes.</p>
+  <div class="flow" id="bag-arboles"></div>
+  <div class="flow" id="bag-voto"></div>
+</section>
+<section class="panel" id="bag-s3">
+  <h2>How accurate each tree is, and how accurate the whole</h2>
+  <p>The question that matters: does the vote beat a single tree? Below, the test accuracy of each of the seven trees, that of the vote, and a number bagging gives away for free: the <b>out of bag</b> error. Since each tree left out around 37% of the firms in its draw, those firms are data that tree never saw. For each training firm, only the trees that did not use it get to vote, and accuracy is measured. It is an honest test estimate without spending the 73 firms held out.</p>
+  <div class="kpi" id="bag-kpi"></div>
+  <div class="flow" id="bag-comp"></div>
+  <p><b>An honest reading.</b> The vote beats the typical tree in the set (75% versus 71%) but not the two-level tree from the previous tab, which got 82%. This is not a failure of the method but a lesson about when it helps: with 219 firms and 5 ratios, a small, well-chosen tree already captures almost everything there is in the data, and there is not much variance left to average away. Also, with 73 test firms, one percentage point is less than one firm. Ensembles shine with more data, more variables and more noise. Here you see the mechanism, not its best case.</p>
+  <p><b>What it is good for, and what it costs.</b> Random forest is the workhorse of classification on tabular data: it hardly needs tuning, tolerates extreme ratios and irrelevant variables, and delivers an <b>importance</b> for each variable (how much impurity it reduced in total, summed over all the trees). The cost is that it no longer reads like a rulebook. It is explained with importances and with examples, and in credit, where every rejection has to be justified, that carries a regulatory price.</p>
+</section>
+<section class="panel" id="bag-s4">
+  <h2>Why voting works: the binomial calculation</h2>
+  <p>There is a way to see the power of voting with no trees involved. Suppose you have \(n\) classifiers, each one is wrong with probability \(\varepsilon\), and their errors are independent (each one is wrong on different firms). The majority is wrong only if more than half are wrong at the same time, and that probability is a binomial sum:</p>
+  <div class="eq"><span class="name">Equation for the probability that the majority is wrong</span>\[ P(\text{majority is wrong}) = \sum_{k > n/2} \binom{n}{k}\,\varepsilon^{k}\,(1 - \varepsilon)^{n - k} \]</div>
+  <p>With \(\varepsilon = 0.35\) (each classifier gets barely two out of three right) and 25 classifiers, the majority fails only 6% of the time. Move the knobs and watch three things: with \(\varepsilon\) below 0.5 the majority's error falls toward zero as classifiers are added; with \(\varepsilon = 0.5\) voting changes nothing; and with \(\varepsilon\) above 0.5 voting makes things <em>worse</em>, because the majority agrees on the error.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label for="bag-eps">Error of each classifier ε: <b id="bag-eps-v">0.35</b></label><input type="range" id="bag-eps" min="5" max="70" value="35" style="width:200px"></div><div class="ctrl"><label for="bag-n">Classifiers: <b id="bag-n-v">25</b></label><input type="range" id="bag-n" min="1" max="101" step="2" value="25" style="width:200px"></div></div>
+  <div class="flow" id="bag-binom"></div>
+  <p>The strong assumption is independence. In practice the trees resemble each other (the \(\rho\) from the previous formula is greater than zero) and the improvement is smaller than what the binomial promises. That is why random forest's second draw is not a detail: it is what brings real trees closer to the assumption of this calculation.</p>
+</section>
+<div class="nav"><button type="button" id="bag-prev">Previous</button><button type="button" id="bag-next">Next</button></div>
+</div>
+
+<!-- ===================== 06 ADABOOST ===================== -->
+<div class="modelo" id="m-ada">
+<div class="controls">
+  <div class="ctrl" data-pasos="1,2"><label for="ada-r">Round: <b id="ada-r-v">1</b></label><input type="range" id="ada-r" min="1" max="5" value="1" style="width:200px"></div>
+  <div class="ctrl" data-pasos="1"><label>&nbsp;</label><button type="button" id="ada-play">Animate the 5 rounds</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="ada-replay">Animate again</button></div>
+</div>
+<nav class="rail" id="ada-rail"></nav>
+<section class="panel" id="ada-s0">
+  <h2>Boosting: each new model focuses on what the previous one got wrong</h2>
+  <p>Bagging trains trees in parallel, each one unaware of the others, and averages them. Boosting does the opposite: it trains them <b>in sequence</b>, and each one knows where the previous one went wrong. The first model looks at all firms equally. The second receives the same firms, but the ones the first misclassified weigh more, so it focuses on them. The third focuses on what the first two left wrong. In the end they all vote, but with weights: the models that got more right weigh more in the decision.</p>
+  <p>The key piece is that the base models are very simple. AdaBoost (Freund and Schapire, 1996) uses <b>stumps</b>: trees with a single split. A stump has only bias, almost no variance (with a single split there is not much to memorize), and on its own it is a bad classifier. Boosting builds a good classifier by adding up many stumps that correct one another. It is the opposite strategy to bagging: instead of lowering the variance of a complex model, it lowers the bias of a simple model.</p>
+  <p>The four equations of one round, with the usual notation: each firm \(i\) has a weight \(w_i\) (all equal at the start, \(1/n\)), and its class is \(y_i = +1\) if it defaulted and \(-1\) if it paid. The stump of round \(m\) is \(h_m\), and it returns \(+1\) or \(-1\).</p>
+  <div class="eq"><span class="name">Equations of one AdaBoost round</span>\[ \varepsilon_m = \sum_i w_i\,[\,h_m(x_i) \neq y_i\,] \qquad \alpha_m = \tfrac{1}{2}\ln\frac{1 - \varepsilon_m}{\varepsilon_m} \qquad w_i \leftarrow \frac{w_i\,e^{-\alpha_m\,y_i\,h_m(x_i)}}{Z} \qquad F(x) = \operatorname{sign}\Big(\sum_m \alpha_m\,h_m(x)\Big) \]</div>
+  <p>Read them one at a time. The first is the stump's <b>weighted error</b>: the sum of the weights of the firms it misclassified (the bracket is 1 if it got it wrong and 0 if not). Since the weights add up to 1, it is a number between 0 and 1. The second is the <b>stump's weight in the final vote</b>: large if its error is small, zero if its error is 0.5 (a stump that is right as often as a coin adds nothing) and negative if it is worse than a coin. The third is the <b>reweighting</b>: for each firm, if the stump got it right (\(y_i\,h_m = +1\)) the exponent is negative and the weight goes down; if it got it wrong (\(y_i\,h_m = -1\)) the exponent is positive and the weight goes up; \(Z\) is the sum of the new weights, so that they add up to 1 again. The fourth is the <b>final prediction</b>: the weighted sum of the votes of all the stumps, and the sign decides.</p>
+  <p>There is a property that helps understand the mechanism: after reweighting, the firms that the stump just chosen misclassified weigh exactly half of the total. That stump is "neutralized" (with the new weights, it is right as often as a coin), and the next one has to find something else that separates them.</p>
+</section>
+<section class="panel" id="ada-s1">
+  <h2>Round by round: the weight concentrates on the hard firms</h2>
+  <p>Here we use two ratios so we can draw: sales over debt on the horizontal axis and debt over assets on the vertical one. Each point is a training firm (copper: default; blue: pays), and its <b>size is its weight</b> in the chosen round. The line is the stump of the round; the shading, the side where it predicts default; the red border marks the firms that stump misclassified. Move the round or animate all five, and watch how the misclassified points grow and pull in the next split.</p>
+  <div class="flow" id="ada-viz"></div>
+  <p id="ada-nota"></p>
+</section>
+<section class="panel" id="ada-s2">
+  <h2>What each round gains, and when boosting fails</h2>
+  <p>The table shows, for each round, the chosen stump, its weighted error, its weight \(\alpha\), how accurate that stump is on its own, and how accurate the accumulated sum of stumps is. Notice two things. The stumps from round 2 onward are not very accurate on their own, because they were chosen with weights for the hard firms, not for the average. And yet the sum improves, at least on training: the set of stumps draws a boundary that no single stump could draw alone.</p>
+  <div class="flow" id="ada-tabla"></div>
+  <p><b>Why it works.</b> Boosting reduces bias: the sum of many simple splits can represent complicated shapes, just as the sum of many steps can approximate any curve. <b>When it fails.</b> For the same reason, boosting can keep lowering the training error long after the test error stopped improving: each round adds one more step, and at some point the new steps only describe noise. It is also sensitive to wrong labels: a misrecorded firm stays "hard" in every round, receives more and more weight, and ends up distorting the splits. With five rounds and two ratios, as here, you see the mechanism but not its best case; the depth 2 tree from tab 03 still wins on test.</p>
+  <p><b>What it is for.</b> AdaBoost was the first boosting that worked, and the idea of "simple models in sequence, each correcting the previous one" is the basis of gradient boosting, XGBoost and LightGBM, which today dominate credit, fraud and customer churn problems.</p>
+</section>
+<div class="nav"><button type="button" id="ada-prev">Previous</button><button type="button" id="ada-next">Next</button></div>
+</div>
+
+<!-- ===================== 07 GRADIENT BOOSTING ===================== -->
+<div class="modelo" id="m-gb">
+<div class="controls">
+  <div class="ctrl" data-pasos="1,2"><label for="gb-r">Rounds: <b id="gb-r-v">6</b></label><input type="range" id="gb-r" min="0" max="6" value="6" style="width:200px"></div>
+  <div class="ctrl" data-pasos="1,2"><label for="gb-lr">Learning rate η: <b id="gb-lr-v">0.5</b></label><input type="range" id="gb-lr" min="1" max="10" value="5" style="width:200px"></div>
+  <div class="ctrl" data-pasos="1"><label>&nbsp;</label><button type="button" id="gb-play">Animate the rounds</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="gb-replay">Animate again</button></div>
+</div>
+<nav class="rail" id="gb-rail"></nav>
+<section class="panel" id="gb-s0">
+  <h2>Gradient boosting: adding small trees that correct the previous one's error</h2>
+  <p>Gradient boosting (Friedman, 2001) is the generalization of AdaBoost that dominates tabular data today. The recipe, for predicting a number, is easier to understand with an example. We want to predict a firm's profitability (roa) from one ratio, sales over debt. We start with the dumbest possible prediction: the average roa, the same for everyone. Obviously we are wrong; each firm is over or under by something. That "something" is called the <b>residual</b>: the difference between the actual value and what we predicted.</p>
+  <p>Now we fit a small tree, a stump, not to roa but <em>to the residual</em>: let it learn where we fell short and where we overshot. We add to the prediction a fraction of what that stump says. We recompute the residuals, which are now smaller, fit another stump, add it, and so on. Each round corrects a little of the error of the previous ones.</p>
+  <div class="eq"><span class="name">Gradient boosting equations</span>\[ F_0 = \bar{y} \qquad r_i = y_i - F_{m-1}(x_i) \qquad h_m = \text{stump fitted to the } r_i \qquad F_m = F_{m-1} + \eta\,h_m \]</div>
+  <p>\(F_m\) is the prediction after \(m\) rounds, \(r_i\) the residual of firm \(i\), \(h_m\) the stump of the round (it predicts the average residual on each side of its split), and \(\eta\) the <b>learning rate</b>. With \(\eta = 1\) the full stump is added: fast, but it overfits soon. With \(\eta = 0.1\) it advances little by little: more rounds are needed, but the result is smoother and generalizes better. It is the same trade-off as the step size in any gradient descent.</p>
+  <p><b>Where the name comes from.</b> With the squared loss (the one we use here), the residual is exactly the negative gradient of the loss with respect to the prediction. So each round takes a gradient descent step, but instead of moving parameters, it adds a function (a stump) that points in the direction of the gradient. That reading is what allows using the same recipe with any differentiable loss: for classification the logistic loss is used, and the residual becomes \(y - p\), the difference between what happened and the probability the model assigned to it.</p>
+  <p><b>And if the response is a category.</b> Here we chose an example with a numeric response (roa) because the residual can be drawn and understood effortlessly. But the recipe is the same for classification, and it is worth seeing where each piece from the previous tabs comes in. When \(y\) is 1 (default) or 0 (pays), the sum of trees \(F(x)\) does not predict the class directly but the <b>logarithm of the odds</b> (the log-odds, the same one that appears in a logistic regression), and the probability is recovered with the sigmoid:</p>
+  <div class="eq"><span class="name">Gradient boosting equations for classification</span>\[ p_i = \frac{1}{1 + e^{-F(x_i)}} \qquad L = -\sum_i \left[\, y_i \log p_i + (1 - y_i)\log(1 - p_i) \,\right] \qquad r_i = y_i - p_i \]</div>
+  <p>\(p_i\) is the probability of default the model assigns to firm \(i\), \(L\) is the <b>cross-entropy</b> from the first tab (the model's accumulated surprise), and \(r_i\) is the negative gradient of that loss with respect to \(F(x_i)\), which turns out to be something very simple: the difference between what happened and the probability the model assigned to it. A firm that defaulted when the model said 0.2 has residual 0.8; one that paid when the model said 0.2 has residual −0.2. Each round fits a small tree to those residuals, exactly as here it is fitted to \(y - F\), and adds it to \(F\). The initial prediction \(F_0\) is the log-odds of the default fraction. The only thing that changes is the value placed in each leaf, which instead of the average residual is a Newton step on the loss (the average residual divided by the average of \(p(1-p)\)); the libraries do it on their own.</p>
+  <p>Put the other way around: AdaBoost is this same scheme with another loss (the exponential one), and that is why its weights and its alphas come out of closed-form formulas. Gradient boosting with cross-entropy is what XGBoost and LightGBM do when they classify, and it is the reason the cross-entropy from the first tab shows up all the way to the end of the journey.</p>
+</section>
+<section class="panel" id="gb-s1">
+  <h2>The staircase is built round by round</h2>
+  <p>With a single variable the full prediction can be drawn: it is a step function, because each stump adds a step. Round 0 is a horizontal line at the average. Each following round adds a jump at the split that best explains the residual. Move the rounds and the learning rate above and watch how the staircase changes; the dotted line is the previous round, so you can see what the last one added.</p>
+  <div class="flow" id="gb-viz"></div>
+  <p id="gb-nota"></p>
+</section>
+<section class="panel" id="gb-s2">
+  <h2>The error per round, the family, and what to ask</h2>
+  <p>The table shows the mean squared error (the average of the squared residuals) on training and on test after each round. On training it always goes down, by construction. On test it goes down while the rounds capture real structure and stops going down when they start capturing noise. That is why the number of rounds is a parameter chosen with <b>early stopping</b>: you watch the error on validation data and stop when it stops improving.</p>
+  <div class="flow" id="gb-tabla"></div>
+  <p><b>The family.</b> Everything used in production today is this same recipe with engineering improvements. XGBoost (2014) added explicit regularization in the leaves, handling of missing data and parallel computation, and it was the one that won the competitions. LightGBM (2017) grows the trees leaf by leaf instead of level by level and groups the values of each variable into bins: much faster with millions of rows. CatBoost (2018) handles categorical variables without preprocessing and uses symmetric trees. Choosing among them matters less than setting the knobs well.</p>
+  <p><b>The knobs, in order of importance.</b> The number of rounds and the learning rate go together: more rounds with a small rate is usually better, and they are chosen with early stopping. Then, the size of each tree: stumps for simple effects, depth 3 to 6 when there are interactions between variables. Then, the subsampling of rows and columns in each round, which lends boosting a bit of the random forest's robustness. And finally, the regularization of the leaves.</p>
+  <p><b>What to ask when someone presents a boosting model.</b> How many rounds and how the number was chosen. What error it gives on data it never saw, not on training. Which variables weigh most and whether that makes business sense. And how an individual prediction is explained, because a rejected customer is going to ask why, and "the model said so" is not an answer.</p>
+</section>
+<div class="nav"><button type="button" id="gb-prev">Previous</button><button type="button" id="gb-next">Next</button></div>
+</div>
+
+<!-- ===================== 08 IMPORTANCIA ===================== -->
+<div class="modelo" id="m-imp">
+<div class="controls">
+  <div class="ctrl" data-pasos="2"><label>&nbsp;</label><button type="button" id="imp-otra">Shuffle again</button></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="imp-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="imp-rail"></nav>
+<section class="panel" id="imp-s0">
+  <h2>What it means for a variable to "matter": the coefficients of a regression</h2>
+  <p>After training any model, the question that comes from the business is always the same: which variables carry weight? A manager wants to know whether what drives risk is liquidity or leverage; a regulator wants to know that the model does not rely on something improper. Each family of models answers in a different way, and it helps to be clear about what each one answers before comparing numbers.</p>
+  <p>The classic answer comes from regression. For a numeric response, linear regression fits \(y = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k\), and each coefficient \(\beta_j\) says how much \(y\) changes when \(x_j\) goes up one unit <em>holding the other variables fixed</em>. For a yes or no response, logistic regression does the same on the logarithm of the odds ratio:</p>
+  <div class="eq"><span class="name">Logistic regression equation</span>\[ \log \frac{p}{1 - p} = \beta_0 + \beta_1 x_1 + \dots + \beta_k x_k \]</div>
+  <p>\(p\) is the probability of default, \(x_j\) are the ratios and \(\beta_j\) their coefficients. A positive \(\beta_j\) says the ratio raises the risk; a negative one, that it lowers it. The coefficient has a <b>sign</b> and it has <b>units</b>: the \(\beta\) for the current ratio is "per unit of current ratio", and the one for ln assets is "per unit of logarithm", so their sizes cannot be compared directly. To compare them, the variables are standardized (their mean is subtracted and they are divided by their standard deviation) and then each \(\beta\) is read as the effect of moving one standard deviation. That is what the table shows: a logistic regression fitted on the 146 training firms, with the ratios standardized.</p>
+  <div class="flow" id="imp-logit"></div>
+  <p id="imp-logit-nota"></p>
+  <p><b>What the coefficient promises and what it assumes.</b> It promises a clean reading: direction, size and, with its standard error, whether it can be distinguished from zero. In exchange it assumes that the effect of each ratio is the same across its whole range (linear in the log-odds) and that it does not depend on the values of the other ratios (additive). When the relationship is U-shaped or step-shaped, or when "collateral matters only if debt is high", the coefficient averages all of that into a single number, and that number can come out small, or with the wrong sign, even though the variable matters a lot. Trees and ensembles do not carry that assumption, but they do not have coefficients either; what they do have is explained in the following steps.</p>
+</section>
+<section class="panel" id="imp-s1">
+  <h2>In a tree: how much impurity each variable reduces</h2>
+  <p>A tree has no coefficients, but it has something we have already computed many times: at each node, the chosen question <b>reduces the impurity</b> of the group by a known amount (the information gain in ID3, the drop in Gini in CART, the drop in variance in regression). The importance of a variable is the sum of those reductions over all the nodes where it was asked about, weighting each node by the fraction of firms that passed through it, and normalized so that the importances add up to 100%:</p>
+  <div class="eq"><span class="name">Impurity-based importance equation</span>\[ \text{imp}(x_j) \;\propto\; \sum_{\text{nodes } t \text{ that ask about } x_j} \frac{n_t}{n}\,\Big[\, I(t) - \frac{n_{t,\text{left}}}{n_t} I(t_{\text{left}}) - \frac{n_{t,\text{right}}}{n_t} I(t_{\text{right}}) \Big] \]</div>
+  <p>\(n_t\) is how many firms reach node \(t\), \(n\) the total, and \(I\) the impurity the tree uses (entropy, Gini or variance). The bracket is the impurity reduction that node achieves; multiplying it by \(n_t / n\) makes a split at the root, through which all firms pass, weigh more than one lower down, through which five pass.</p>
+  <div class="flow" id="imp-arbol"></div>
+  <p id="imp-arbol-nota"></p>
+  <p><b>What this importance says and what it does not.</b> It says how much the tree used each variable to sort the data, with relationships of any shape and interactions included. It does not say the direction of the effect (there is no sign: the same variable can raise the risk in one branch and lower it in another), it has no units and no standard error, and it inherits the instability of the tree: with another 146 firms the root can change and the ranking with it. It also has a known bias: a numeric variable with many distinct values offers many more candidate splits than a two-valued category, and so it tends to gain importance "for free", the same problem as the identifier trap in the first tab. And if two ratios are highly correlated, the tree picks one and the importance of the other is left at zero even though it contains almost the same information.</p>
+</section>
+<section class="panel" id="imp-s2">
+  <h2>In a forest: summing over the trees, or shuffling a column</h2>
+  <p>With many trees, impurity-based importance is computed the same way and averaged over the forest. The average fixes the instability (a variable that ended up at zero in one tree shows up in others), and that is why the importance from a random forest is much more reliable than that of a single tree. The biases toward variables with many splits and the arbitrary allocation between correlated variables are still there.</p>
+  <p>There is a second way to measure importance that does not look inside the model and therefore works for any model: <b>permutation importance</b>. Take the already trained model and the test firms, measure the accuracy, and then <em>shuffle</em> one column (mix the values of that ratio across the firms, breaking its relationship with the response) and measure again. If the accuracy drops a lot, the model depended on that variable; if it does not change, the model was not really using it.</p>
+  <div class="eq"><span class="name">Permutation importance equation</span>\[ \text{imp}_{\text{perm}}(x_j) = \text{accuracy}(\text{original data}) - \text{accuracy}(\text{data with } x_j \text{ shuffled}) \]</div>
+  <p>Since the shuffling is random, it is repeated several times and averaged. Here it is done with the vote of the seven bagging trees from tab 05 on the 73 test firms, with 20 shuffles per variable; press "Shuffle again" to see how much it moves.</p>
+  <div class="flow" id="imp-bosque"></div>
+  <p id="imp-bosque-nota"></p>
+  <p><b>Which one to use.</b> Impurity-based importance is free (the library hands it over when training finishes) and describes how the model was built. Permutation importance costs more computation, but it measures what matters to the business, how much worse the prediction gets if that information were not there, and it can be computed on test data, so it does not reward variables that only served to memorize the training set. Its weak point is the usual one with correlated variables: if you shuffle one and the model has another that is almost the same, the accuracy barely drops and both look unimportant.</p>
+</section>
+<section class="panel" id="imp-s3">
+  <h2>In boosting: the same thing, adding up round by round</h2>
+  <p>In AdaBoost and in gradient boosting the trees are not averaged, they are summed, but importance is computed with the same idea: accumulate, round by round, how much each variable contributed. For AdaBoost with stumps, each round uses a single variable, so the natural thing is to add up the weight \(\alpha\) of the stumps that asked about it (or the weighted impurity reduction each one achieved). With the five rounds from tab 06:</p>
+  <div class="flow" id="imp-ada"></div>
+  <p>In gradient boosting each round fits a small tree to the residual, and that tree has its nodes with their impurity reduction (of the variance of the residual, in regression; of an equivalent impurity on the residuals \(y - p\), in classification). The importance of a variable is the sum of those reductions over all rounds, normalized. In the example from tab 07 there is a single variable, so it takes 100% and there is nothing to compare; with five ratios the calculation is identical to the forest's. XGBoost reports three versions of this: <em>gain</em> (the accumulated loss reduction, which is the one that corresponds to the equation in step 1), <em>cover</em> (how many firms passed through the nodes of that variable) and <em>weight</em> (in how many nodes it appeared). It is best to look at <em>gain</em>; <em>weight</em> rewards variables with many possible splits.</p>
+  <p>A warning specific to boosting: since each tree corrects the previous ones, a variable can appear a lot in late rounds only to fit residual noise. Impurity-based importance counts it all the same; permutation importance on test data does not. When the two differ a lot, it is usually a sign of overfitting.</p>
+</section>
+<section class="panel" id="imp-s4">
+  <h2>All together: the betas and the importances, side by side</h2>
+  <p>The table gathers, for the five ratios, the standardized coefficient of the logistic regression (with its sign), the impurity-based importance of the depth-2 tree, that of the random forest of 100 trees and the permutation importance on the bagging. All are computed with the same split of the data, so the differences are due to method, not data.</p>
+  <div class="flow" id="imp-todo"></div>
+  <p id="imp-todo-nota"></p>
+  <p><b>How to read the differences.</b> The four numbers answer different questions. The coefficient answers "if I move this ratio one standard deviation and leave everything else the same, how much does the log-odds of default change, on average and assuming a linear relationship". Impurity-based importance answers "how much did the model use this ratio to separate the training firms". Permutation importance answers "how much accuracy do I lose on new firms if this information were not there". That a ratio is first on one list and third on another is not a contradiction: the lists measure different things, and with 146 firms all three are noisy.</p>
+  <p><b>What no importance gives, and how to recover it.</b> None of the three tree measures has a sign: they say liquidity matters, not whether high liquidity raises or lowers the risk. To recover the direction there are two paths. One is to look at the leaves, as we did in tabs 02 and 03: the rule "sales over debt below 1.28 implies more default" is a direction. The other, for ensembles, is the per-firm contribution methods, of which the most used is SHAP: they split the prediction of <em>each</em> firm among its variables, with sign, and averaging the absolute values over all firms gives a global importance that does carry direction. It is the closest thing to a coefficient that an ensemble has, with one difference: the effect of a ratio can be different for each firm, which is exactly what the regression assumed did not happen.</p>
+  <p><b>What it is for.</b> For choosing the right explanation depending on who you are talking to. To a credit committee that demands rules: a small tree and its leaves. To a manager who asks what to look at: forest importances, with the warning that they carry no sign. To a regulator who demands a justification for every rejection: per-client contributions. And to an econometrician who already has a regression: the betas remain the cleanest reading when the relationship is approximately linear, and the ensemble tells them when it is not.</p>
+</section>
+<div class="nav"><button type="button" id="imp-prev">Previous</button><button type="button" id="imp-next">Next</button></div>
+</div>
+
+<!-- ===================== BONUS C5.0 ===================== -->
+<div class="modelo" id="m-c5">
+<div class="controls">
+  <div class="ctrl" data-pasos="1"><label for="c5-attr">Attribute</label><select id="c5-attr"><option value="deuda" selected>debt</option><option value="tamano">size</option><option value="garantia">collateral</option><option value="historial">history</option></select></div>
+  <div class="ctrl" data-pasos="2"><label for="c5-emp">Test firm</label><select id="c5-emp"></select></div>
+  <div class="ctrl" data-pasos="2"><label for="c5-falta">Missing ratio</label><select id="c5-falta"></select></div>
+  <div class="ctrl" data-pasos="3"><label for="c5-cf">Confidence factor cf: <b id="c5-cf-v">0.25</b></label><select id="c5-cf"><option value="0.01">0.01</option><option value="0.05">0.05</option><option value="0.10">0.10</option><option value="0.20">0.20</option><option value="0.25" selected>0.25</option></select></div>
+  <div class="ctrl"><label>&nbsp;</label><button type="button" id="c5-replay">Replay animation</button></div>
+</div>
+<nav class="rail" id="c5-rail"></nav>
+<section class="panel" id="c5-s0">
+  <h2>Why C5.0: a customer churn case, from start to finish</h2>
+  <h3>The problem</h3>
+  <p>A telecommunications company loses one in five customers every year. Retaining a customer costs far less than acquiring a new one, but the retention budget does not stretch to everyone: you need to know <b>who</b> is going to leave and, above all, <b>why</b>, because the action differs by cause. A new customer who does not yet know the service gets a call; one with accumulated complaints gets the complaint resolved; one from an area with poor coverage gains nothing from a discount. The sales team needs segments, each with a clear rule, not a list of probabilities.</p>
+  <h3>The data</h3>
+  <p>3,000 customers, simulated for this material with a fixed seed (the generator ships with the rest of the material, so the example is reproducible and can be modified). For each customer we know seven things: the <b>region</b> where they live (the 16 regions of Chile, a categorical variable with many values), the <b>plan</b> (prepago, postpago or empresa: prepaid, postpaid or business), the <b>tenure</b> in months, the <b>monthly spend</b> in pesos, the <b>complaints</b> in the last 12 months, the <b>gigabytes of data</b> used per month and the <b>age</b>. And what we want to predict: whether they left (<code>churn = 1</code>) or stayed. As in any real database, there are gaps: data usage and age are missing for about 8% of customers. We train on the first 2,000 and measure on the other 1,000.</p>
+  <div class="flow" id="c5-datos"></div>
+  <p id="c5-datos-nota"></p>
+  <h3>The solution: a tree that works with the data as it comes</h3>
+  <p>This table has the three things that make life hard for a scikit-learn tree: two text columns, one of them with 16 values, and gaps. With scikit-learn you have to convert region and plan into columns of zeros and ones (one per value: 24 columns in total) and fill the gaps with something, typically the median. With C5.0 there is nothing to prepare: the table goes in as is, and the algorithm does four things the sales team notices right away. It works with numeric and categorical variables at the same time. When a categorical variable has many values, it <b>groups the values</b> in the split ("region in {La Araucanía, Los Ríos, Tarapacá}") instead of opening one branch per value or needing 16 columns. It <b>handles missing values</b> without imputing: the customer goes down both branches with weights, and "data missing" can even appear as a condition in a rule. And for each customer it returns <b>the exact rule that fired</b>, which is a business rule and suggests an action. The result is a smaller and more readable tree than the scikit-learn one, with equal or better performance. And if interpretability stops mattering, <code>trials = 10</code> turns it into a boosted ensemble without changing anything else.</p>
+  <p>We compare tree against tree with the same brake (minimum number of customers per leaf), and ensemble against ensemble, on the 1,000 test customers:</p>
+  <div class="block stage" style="max-width:100%"><div class="t">c50py versus scikit-learn (1,000 test customers; predicting "stays" for everyone gets 81.3% right)</div><div id="c5-churn-tabla" class="mwrap"></div></div>
+  <p id="c5-churn-nota"></p>
+  <h3>The two trees, drawn</h3>
+  <p>It is not just the size. Look at what each one asks. The C5.0 tree (minimum 25 per leaf) opens with region, continues with complaints and groups regions again further down: twelve leaves, each one a named segment. The scikit-learn tree, with the same brake, has 55 leaves and 11 levels, opens with tenure and continues with spend; when it does get around to mentioning a region, it does so one at a time ("region = La Araucanía ≤ 0.5", four times, always near the bottom), because with 16 columns of zeros and ones each one separates a small group and loses against any numeric threshold. The region signal was in the data; what changed is whether the algorithm could see it in a single question. Both charts scroll sideways.</p>
+  <div class="block stage" style="max-width:100%"><div class="t">c50py 0.3.0, trials = 1, minimum 25 per leaf, default pruning (in each node: training n and fraction that left)</div><div id="c5-g-c5" class="mwrap"></div></div>
+  <div class="block stage" style="max-width:100%"><div class="t">scikit-learn DecisionTreeClassifier, minimum 25 per leaf, on the 24 columns (55 leaves: scroll sideways)</div><div id="c5-g-sk" class="mwrap"></div></div>
+  <div class="flow">
+    <div class="block stage" style="flex:1 1 440px"><div class="t">The same c50py tree as text: clf.print_tree()</div><pre id="c5-arbol-c5" style="margin:0;font-size:.78rem;line-height:1.35;overflow-x:auto;max-height:420px;overflow-y:auto"></pre></div>
+    <div class="block stage" style="flex:1 1 440px"><div class="t">The scikit-learn one as text: export_text()</div><pre id="c5-arbol-sk" style="margin:0;font-size:.78rem;line-height:1.35;overflow-x:auto;max-height:420px;overflow-y:auto"></pre></div>
+  </div>
+  <h3>The rule that fired, customer by customer</h3>
+  <p>This is what turns the tree into a retention tool. <code>predict_rule</code> returns, for each customer, the chain of conditions that led to their leaf, and each leaf has an action. Pick a test customer:</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label for="c5-cli">Customer</label><select id="c5-cli"></select></div></div>
+  <div class="flow" id="c5-cliente"></div>
+  <p id="c5-cliente-nota"></p>
+  <h3>And if all that matters is accuracy</h3>
+  <p>The last two rows of the table are <code>trials = 10</code>: ten trees in sequence with the AdaBoost scheme from tab 06, touching nothing else, against scikit-learn's gradient boosting. They come out even (0.790 versus 0.802 AUC, same accuracy), at the cost of losing the per-customer rule. And there is a middle path: without pruning and with a minimum of 50 per leaf, a single tree with 27 leaves reaches 0.767 AUC, because it keeps leaves that do not change the predicted class but do refine the probability; C4.5 pruning looks at the error, not the ordering, and removes them. It is the usual decision between explaining and being right, and C5.0 leaves it to one parameter.</p>
+  <h3>Where c50py comes from</h3>
+  <p>At the close of tab 02 we noted that after ID3 the story forked: C4.5 on one side and CART on the other. Everything that came afterwards in this journey followed the CART branch, which is the scikit-learn one. C4.5 (Quinlan, 1993) and its commercial successor C5.0 (also called See5) were for years the reference tree in industry, and to this day they are used in R through the <code>C50</code> package. Quinlan released the C source code of C5.0 in 2011. Starting from that code, David Díaz, the author of this material, wrote <b>c50py</b>, the first implementation of C5.0 in Python: from scratch in Python and NumPy, with the scikit-learn interface (<code>fit</code>, <code>predict</code>, <code>predict_proba</code>, <code>score</code>, and it fits into a <code>Pipeline</code> or a <code>GridSearchCV</code>), and with things that neither the original C5.0 nor the R package offer: a <code>C5Regressor</code> for numeric responses, the exact rule applied to each prediction, and export to Graphviz. Everything shown in this tab uses version 0.3.0, which brings pessimistic pruning and split selection exactly as they are in the C4.5 code.</p>
+  <div class="block stage"><div class="t">Where to find it</div><p style="margin:0">Install: <code>pip install c50py</code> · Code and documentation: <a href="https://github.com/daviddiazsolis/c50py">github.com/daviddiazsolis/c50py</a> · Package: <a href="https://pypi.org/project/c50py/">pypi.org/project/c50py</a></p></div>
+  <p>The following steps open up the mechanism behind each of the four things: gain ratio and subsets, missing values, pruning, and boosting.</p>
+</section>
+<section class="panel" id="c5-s1">
+  <h2>Splits by subsets of categories, and the gain ratio</h2>
+  <p>ID3 opens one branch per value of the attribute: low, medium and high debt are three branches. C5.0 does something different: it tries every way of separating the values into <em>two</em> groups ({low} versus {medium, high}, {medium} versus {low, high}, and so on) and picks the best. With three values there are three possible partitions; with four, seven; with \(k\) values, \(2^{k-1} - 1\). That is why libraries set a cap (in <code>c50py</code>, <code>max_categories_exhaustive</code>, 12 by default) and use a heuristic above it.</p>
+  <p>To compare splits that cut into different numbers of pieces, C4.5 divides the gain by the entropy of the partition itself, which it calls <em>split information</em>:</p>
+  <div class="eq"><span class="name">Gain ratio equation</span>\[ \text{gain ratio}(S) = \frac{H(Y) - \sum_{g} \frac{n_g}{n} H(Y \text{ in } g)}{-\sum_{g} \frac{n_g}{n} \log_2 \frac{n_g}{n}} \]</div>
+  <p>The numerator is the information gain from tab 01: the entropy of the response \(Y\) minus the weighted average of the entropy within each group \(g\) formed by the split \(S\), with \(n_g\) firms in the group and \(n\) in total. The denominator is the entropy of the group sizes: it is 1 bit if the split cuts into two halves, 1.58 if it cuts into three thirds, and it grows with the number of pieces. Dividing penalizes splits that gain "for free" by cutting a lot.</p>
+  <p>Pick an attribute above and compare: the partition over all values (what ID3 does) versus each binary partition (what C5.0 does).</p>
+  <div class="flow" id="c5-sub"></div>
+  <p id="c5-sub-nota"></p>
+  <p>With the 14 firms, <code>c50py</code> builds this tree (no pruning, with gain ratio and binary splits). Compare it with the ID3 tree in tab 02: the root is the same question written in binary form, and the rest is arranged differently because after "debt in {low}" there are 10 mixed firms left instead of two groups of 5.</p>
+  <div class="block stage"><div class="t">c50py on the 14 firms: clf.print_tree()</div><pre style="margin:0;font-size:.82rem;line-height:1.35;overflow-x:auto">if debt in {low}:
+  Predict yes | dist={'no': 0, 'yes': 4}
+else:
+  if collateral in {no}:
+    if size in {small}:
+      if debt in {medium}:
+        if history in {good}:
+          Predict yes | dist={'no': 0, 'yes': 1}
+        else:
+          Predict no | dist={'no': 1, 'yes': 0}
+      else:
+        Predict no | dist={'no': 1, 'yes': 0}
+    else:
+      Predict no | dist={'no': 3, 'yes': 0}
+  else:
+    if size in {large}:
+      Predict yes | dist={'no': 0, 'yes': 2}
+    else:
+      if debt in {high}:
+        Predict yes | dist={'no': 0, 'yes': 1}
+      else:
+        Predict no | dist={'no': 1, 'yes': 0}</pre></div>
+  <p>Eight leaves for 14 firms: like ID3, C5.0 with no brake keeps splitting until every group is pure, and with so few firms that means memorizing. What holds it back is the pruning in step 3 and the minimum number of firms per leaf.</p>
+</section>
+<section class="panel" id="c5-s2">
+  <h2>Missing values: the firm goes down both branches</h2>
+  <p>In practice, a firm may be missing a ratio (it did not deliver the full balance sheet, or the figure is a zero divided by zero). CART needs someone to fill that gap beforehand, typically with the median. C5.0 does something more honest. When training, if a firm is missing the variable a node asks about, it is neither discarded nor sent to one side: it is sent down <b>both branches</b>, with a weight equal to the fraction of the known firms that went each way. That is why in <code>c50py</code> trees trained on incomplete data the leaves show counts with decimals, like "82.46 pay, 32.78 do not": they are whole firms plus pieces of firms.</p>
+  <p>The same happens when predicting. If the new firm is missing the node's variable, the prediction is the weighted average of what the two branches say:</p>
+  <div class="eq"><span class="name">Equation for the prediction with a missing value</span>\[ P(\text{default} \mid x) = \frac{n_{\text{left}}}{n_{\text{left}} + n_{\text{right}}}\, P_{\text{left}}(\text{default} \mid x) + \frac{n_{\text{right}}}{n_{\text{left}} + n_{\text{right}}}\, P_{\text{right}}(\text{default} \mid x) \]</div>
+  <p>\(n_{\text{left}}\) and \(n_{\text{right}}\) are how many training firms with the variable known went each way at that node, and \(P_{\text{left}}\) and \(P_{\text{right}}\) are the probabilities each branch delivers as it keeps going down with the firm's other ratios (which are known). There is also a correction when choosing the split: the gain is computed only with the firms that have the value, and multiplied by the fraction of known firms, so that a variable with many gaps does not win on the little that can be seen of it.</p>
+  <p>Try it with the depth-2 CART tree from tab 03 (the mechanism is the same in any tree): pick a test firm and which ratio it is missing.</p>
+  <div class="flow" id="c5-falt"></div>
+  <p id="c5-falt-nota"></p>
+  <p><b>What it gives on these data.</b> We randomly erase 20% of the ratio values (in training and in test) and compare three ways of moving forward. With default pruning and a minimum of 1 per leaf, <code>c50py</code> with fractional propagation ends up as a 3-leaf tree and gets 64.4% right on test; a scikit-learn CART with the gaps filled with the median, 60.3%; a CART trained only on the 46 complete rows, 76.7%. Without gaps, both get 76.7% right. With 73 test firms these differences amount to three to nine firms and do not allow declaring a winner; what they do show is that 20% gaps across 5 ratios leaves few complete firms (46 of 146) and a lot of uncertainty in the rest, and that the three paths distribute it differently. The advantage of fractional propagation is that it does not invent a value: it preserves the uncertainty and shows it in the prediction, like the counts with decimals above.</p>
+</section>
+<section class="panel" id="c5-s3">
+  <h2>Pessimistic pruning: pruning without validation data</h2>
+  <p>The cost-complexity pruning from tab 04 needs data the tree has not seen in order to decide how much to cut. Quinlan wanted to prune using only the training data, and his trick is to recognize that a leaf's training error is optimistic, and to correct it upward. A leaf with \(N\) cases and \(E\) errors is treated as a binomial sample: if the true error were \(p\), seeing only \(E\) errors in \(N\) attempts would be rare if \(p\) were much larger. One takes the largest value of \(p\) still compatible with what was observed, at confidence level \(cf\), and charges the leaf that error instead of the observed one. In the C4.5 code (<code>AddErrs</code> in <code>prune.c</code>) it is computed like this:</p>
+  <div class="eq"><span class="name">Equation for a leaf's pessimistic error (C4.5)</span>\[ E_{\text{pes}} = E + \text{AddErrs}(N, E),\qquad \text{AddErrs}(N, 0) = N\,(1 - cf^{1/N}),\qquad \text{AddErrs}(N, E) \approx N\cdot\frac{p + \frac{z^2}{2N} + z\sqrt{\frac{p(1-p)}{N} + \frac{z^2}{4N^2}}}{1 + \frac{z^2}{N}} - E \;\text{ with } p = \tfrac{E + 0.5}{N} \]</div>
+  <p>\(z\) is the normal quantile corresponding to \(cf\), from C4.5's own table: 0.69 for the default value 0.25; 1.28 for 0.10; 2.33 for 0.01. A smaller \(cf\) gives a larger \(z\), inflates the error more and prunes more. The important part is in the first formula: a <b>pure</b> leaf (\(E = 0\)) also pays. A leaf with a single firm and no errors receives \(1 \cdot (1 - 0.25) = 0.75\) pessimistic errors; one with three, \(3\,(1 - 0.25^{1/3}) = 1.11\). That is the mechanism that makes it possible to prune leaves that merely memorized. Then, for each internal node, the pessimistic errors of its leaves are added up and compared with those of the node turned into a leaf; if as a leaf it is no worse (with a tolerance of 0.1 error), it is pruned. This is done bottom-up.</p>
+  <p>Below, a real node from the unpruned tree on the 146 firms: "debt over assets ≤ 0.374", with 4 firms (3 pay, 1 default) split into a leaf with 1 default and a leaf with 3 that pay. Change the confidence factor above and watch when the decision changes; then edit the numbers.</p>
+  <div class="controls" style="border:0"><div class="ctrl"><label>Node as a leaf: N and errors</label><div style="display:flex;gap:6px"><input type="number" id="c5-pN" value="4" min="1" max="9999" style="width:70px"><input type="number" id="c5-pE" value="1" min="0" max="9999" style="width:70px"></div></div>
+  <div class="ctrl"><label>Leaf 1: N and errors</label><div style="display:flex;gap:6px"><input type="number" id="c5-h1N" value="1" min="0" style="width:70px"><input type="number" id="c5-h1E" value="0" min="0" style="width:70px"></div></div>
+  <div class="ctrl"><label>Leaf 2: N and errors</label><div style="display:flex;gap:6px"><input type="number" id="c5-h2N" value="3" min="0" style="width:70px"><input type="number" id="c5-h2E" value="0" min="0" style="width:70px"></div></div>
+  <div class="ctrl"><label>Leaf 3 (optional): N and errors</label><div style="display:flex;gap:6px"><input type="number" id="c5-h3N" value="0" min="0" style="width:70px"><input type="number" id="c5-h3E" value="0" min="0" style="width:70px"></div></div></div>
+  <div class="flow" id="c5-poda"></div>
+  <p id="c5-poda-nota"></p>
+  <p><b>What it gives on the 146 firms.</b> With version 0.3.0 the default tree (minimum 1 per leaf, \(cf = 0.25\)) has 6 leaves and gets 82.9% right on training and 76.7% on test; with \(cf = 0.01\) it drops to 5 leaves (82.2% and 78.1%); with a minimum of 5 per leaf, 5 leaves (81.5% and 78.1%); with a minimum of 10, 4 leaves (80.8% and 74.0%). In the previous version of the package the pure leaf paid nothing and the same tree ended up with 32 leaves and 100% on training; the difference between the two versions is exactly the first formula above.</p>
+  <p><b>A property of this pruning worth keeping in mind.</b> It looks at the error, not the ordering. In an unbalanced problem (the churn case, with 20% churn) many leaves predict the majority class and only refine the probability; for classification error they contribute nothing, and C4.5 pruning removes them. That is why in the table in step 0 the unpruned tree with a minimum of 50 per leaf ranks customers better (AUC 0.767) than the pruned one (0.716), even though it gets fewer right. If the use is a risk ranking, <code>pruning=False</code> with a reasonable minimum per leaf; if the use is rules and decisions, the default pruning.</p>
+</section>
+<section class="panel" id="c5-s4">
+  <h2>Built-in boosting, rules, and how to use it (on the 219 firms)</h2>
+  <p>C5.0 has boosting built in: <code>trials = 10</code> trains ten trees in sequence with the same AdaBoost scheme from tab 06. Each tree is trained with per-firm weights, its weighted error \(\varepsilon\) is computed, its weight in the vote is \(\alpha = \tfrac{1}{2}\ln\frac{1 - \varepsilon}{\varepsilon}\), the misclassified firms are multiplied by \(e^{\alpha}\), the weights are renormalized and it continues. It stops early if a tree is perfect (there is nothing left to correct) or if it is worse than a coin flip.</p>
+  <p>On the 146 firms, with the default values (minimum 1 per leaf, pessimistic pruning), the first tree gets 82.9% right on training, so it still has errors to correct and the boosting has work to do:</p>
+  <div class="block stage"><div class="t">c50py 0.3.0, default values, accuracy on training and test</div><div class="mwrap"><table class="cmp">
+    <tr><th>trials</th><th>trees trained</th><th>training</th><th>test (73)</th></tr>
+    <tr><td>1</td><td>1</td><td>82.9%</td><td>76.7%</td></tr>
+    <tr><td>3</td><td>3</td><td>84.2%</td><td>78.1%</td></tr>
+    <tr><td>5</td><td>5</td><td>81.5%</td><td>79.5%</td></tr>
+    <tr class="hi"><td>10</td><td>10</td><td>100%</td><td>82.2%</td></tr>
+    <tr><td>25</td><td>25</td><td>100%</td><td>82.2%</td></tr>
+  </table></div><p style="font-size:.88rem;color:var(--muted)">The alphas of the first rounds: 0.79; 0.44; 0.42; 0.57; 0.30. With ten rounds the ensemble reaches 82.2% on test, the same as the best CART tree in tab 03, and training is already at 100%: from there on there is nothing left to correct and adding rounds changes nothing. The number of rounds is still a knob best chosen with validation data.</p></div>
+  <p>The other distinctive feature is the rule output. <code>export_rules()</code> writes each leaf as a condition and a conclusion, and <code>predict_rule(x)</code> returns, for a firm, exactly the rule that was applied to it. With the default tree on the 146 firms:</p>
+  <div class="block stage"><div class="t">clf.export_rules(feature_names=RATIOS)</div><pre style="margin:0;font-size:.82rem;line-height:1.4;white-space:pre-wrap">ventas_deuda ≤ 1.278 AND razon_corriente ≤ 1.866  ⇒  default   (23 firms, all in default)
+ventas_deuda ≤ 1.278 AND razon_corriente > 1.866 AND deuda_activos ≤ 0.374  ⇒  default   (1 firm)
+ventas_deuda ≤ 1.278 AND razon_corriente > 1.866 AND deuda_activos > 0.374  ⇒  pays   (3 firms)
+ventas_deuda > 1.278 AND deuda_activos ≤ 0.586  ⇒  pays   (76: 12 default, 64 pay)
+ventas_deuda > 1.278 AND deuda_activos > 0.586 AND roa ≤ 0.088  ⇒  pays   (32: 12 default, 20 pay)
+ventas_deuda > 1.278 AND deuda_activos > 0.586 AND roa > 0.088  ⇒  default   (11: 10 default, 1 pays)</pre></div>
+  <p>Notice that the root and the first level are the same as in the CART tree from tab 03 (sales over debt 1.278, then current ratio 1.866 and debt over assets 0.586): on these data, gain ratio and Gini agree on the first two questions, and differ in what they do afterwards with the remaining groups. In the previous version of the package the root was different ("debt over assets ≤ 1.063", eleven firms with more debt than assets): C4.5's rule of requiring at least the average gain before looking at the gain ratio is what discarded that split, which had a very uneven partition and therefore an inflated gain ratio.</p>
+  <p><b>How to use it.</b> Three lines:</p>
+  <div class="block stage"><div class="t">Python</div><pre style="margin:0;font-size:.85rem;line-height:1.45">pip install c50py
+
+from c50py import C5Classifier
+clf = C5Classifier(trials=1, cf=0.25, min_samples_leaf=1,       # the default values
+                   infer_categorical=True)                       # or categorical_features=["region", "plan"]
+clf.fit(X, y)                       # X can be a DataFrame: the columns give the names
+clf.print_tree(); clf.export_rules(); clf.predict_rule(X_new)</pre></div>
+  <p>There is also a <code>C5Regressor</code> with the same interface for numeric responses (variance as impurity, as in the regression leaf in tab 03). And one final reading to close the journey: C5.0 and CART are two answers to the same questions (how to choose the split, what to do with categories and gaps, when to stop). Neither is "the correct one"; knowing both is what lets you read with judgment whatever any library delivers.</p>
+</section>
+<div class="nav"><button type="button" id="c5-prev">Previous</button><button type="button" id="c5-next">Next</button></div>
+</div>
+</div>

@@ -1,0 +1,22 @@
+@import "tailwindcss";
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #18181b; }
+::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #52525b; }
+html.light {
+  --color-zinc-950: #fafafa;
+  --color-zinc-900: #f4f4f5;
+  --color-zinc-800: #e4e4e7;
+  --color-zinc-700: #d4d4d8;
+  --color-zinc-600: #a1a1aa;
+  --color-zinc-500: #71717a;
+  --color-zinc-400: #52525b;
+  --color-zinc-300: #3f3f46;
+  --color-zinc-200: #27272a;
+  --color-zinc-100: #18181b;
+}
+html.light ::-webkit-scrollbar-track { background: #f4f4f5; }
+html.light ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 3px; }
+html.light ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
