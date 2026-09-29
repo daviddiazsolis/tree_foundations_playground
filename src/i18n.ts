@@ -26,7 +26,8 @@ export const translations: Record<Language, Record<string, string>> = {
     sandboxCTA: 'Open the Tree & Ensemble Playground',
 
     nbTitle: 'Colab notebooks',
-    nbSubtitle: 'Six notebooks that follow the tabs, with exercises and solutions, plus a graded assignment. Written in Spanish.',
+    nbSubtitle: 'Six notebooks that follow the tabs, with exercises and solutions, plus a graded assignment. Each one is available in English and Spanish; the button opens the version in the language you are reading.',
+    nbOther: 'Spanish version',
     nb1Title: '01 Entropy and information',
     nb1Desc: 'Information of an event, entropy, conditional entropy, gain and gain ratio, mutual information versus correlation, cross-entropy.',
     nb2Title: '02 Decision trees',
@@ -79,7 +80,8 @@ export const translations: Record<Language, Record<string, string>> = {
     sandboxCTA: 'Abrir el Tree & Ensemble Playground',
 
     nbTitle: 'Notebooks en Colab',
-    nbSubtitle: 'Seis notebooks que siguen las pestañas, con ejercicios y soluciones, más una tarea evaluada.',
+    nbSubtitle: 'Seis notebooks que siguen las pestañas, con ejercicios y soluciones, más una tarea evaluada. Cada uno está en español y en inglés; el botón abre la versión del idioma en que estás leyendo.',
+    nbOther: 'Versión en inglés',
     nb1Title: '01 Entropía e información',
     nb1Desc: 'Información de un evento, entropía, entropía condicional, ganancia y gain ratio, información mutua versus correlación, entropía cruzada.',
     nb2Title: '02 Árboles de decisión',

@@ -5,18 +5,20 @@ import { useLanguage } from '../context/LanguageContext'
 
 const REPO = 'https://github.com/daviddiazsolis/tree_foundations_playground'
 const NB = (f: string) => `https://colab.research.google.com/github/daviddiazsolis/tree_foundations_playground/blob/main/notebooks/${f}`
+// Cada notebook existe en español (es) y en inglés (en); el botón abre el del idioma activo.
 const NOTEBOOKS = [
-  { k: 'nb1', f: 'Arboles_01_Entropia_e_Informacion.ipynb' },
-  { k: 'nb2', f: 'Arboles_02_Arboles_de_Decision.ipynb' },
-  { k: 'nb3', f: 'Arboles_03_Sobreajuste_y_Poda.ipynb' },
-  { k: 'nb4', f: 'Arboles_04_Ensambles.ipynb' },
-  { k: 'nb5', f: 'Arboles_05_Importancia_de_Variables.ipynb' },
-  { k: 'nb6', f: 'Arboles_06_C50_bonus.ipynb' },
-  { k: 'nb7', f: 'Tarea_Arboles_y_Ensambles.ipynb' },
+  { k: 'nb1', es: 'Arboles_01_Entropia_e_Informacion.ipynb', en: 'Arboles_01_Entropia_e_Informacion_EN.ipynb' },
+  { k: 'nb2', es: 'Arboles_02_Arboles_de_Decision.ipynb', en: 'Arboles_02_Arboles_de_Decision_EN.ipynb' },
+  { k: 'nb3', es: 'Arboles_03_Sobreajuste_y_Poda.ipynb', en: 'Arboles_03_Sobreajuste_y_Poda_EN.ipynb' },
+  { k: 'nb4', es: 'Arboles_04_Ensambles.ipynb', en: 'Arboles_04_Ensambles_EN.ipynb' },
+  { k: 'nb5', es: 'Arboles_05_Importancia_de_Variables.ipynb', en: 'Arboles_05_Importancia_de_Variables_EN.ipynb' },
+  { k: 'nb6', es: 'Arboles_06_C50_bonus.ipynb', en: 'Arboles_06_C50_bonus_EN.ipynb' },
+  { k: 'nb7', es: 'Tarea_Arboles_y_Ensambles.ipynb', en: 'Tarea_Arboles_y_Ensambles_EN.ipynb' },
 ]
 
 export default function NotebooksSection() {
-  const { t } = useLanguage()
+  const { t, language } = useLanguage()
+  const other = language === 'es' ? 'en' : 'es'
   return (
     <section id="notebooks" className="py-16 px-6 max-w-7xl mx-auto border-t border-zinc-800/50 scroll-mt-16">
       <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4 }}>
@@ -30,10 +32,14 @@ export default function NotebooksSection() {
             <div key={nb.k} className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5 flex flex-col">
               <h3 className="font-semibold text-zinc-200 mb-2">{t(nb.k + 'Title')}</h3>
               <p className="text-sm text-zinc-500 mb-4 leading-relaxed flex-1">{t(nb.k + 'Desc')}</p>
-              <div className="flex gap-2">
-                <a href={NB(nb.f)} target="_blank" rel="noopener noreferrer"
+              <div className="flex flex-wrap gap-2">
+                <a href={NB(nb[language])} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-zinc-900 bg-amber-500 transition-opacity hover:opacity-80">
                   <ExternalLink className="w-3 h-3" /> {t('nbOpen')}
+                </a>
+                <a href={NB(nb[other])} target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
+                  {t('nbOther')}
                 </a>
                 <a href={REPO} target="_blank" rel="noopener noreferrer"
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-400 hover:text-zinc-200 transition-colors">
